@@ -2,10 +2,10 @@
 
 Công cụ tự động hóa việc thu thập và chuẩn hóa dữ liệu từ hệ thống Huawei FusionSolar sang định dạng JSON đồng nhất, hỗ trợ quản lý tập trung và tích hợp hệ thống bên thứ ba.
 
-## 📖 Giới thiệu
+##  Giới thiệu
 **Fusion-Format** được thiết kế để giải quyết vấn đề cấu trúc dữ liệu phức tạp và không đồng nhất của FusionSolar. Công cụ sử dụng cơ chế Browser Automation để vượt qua rào cản đăng nhập và gọi trực tiếp các API nội bộ để lấy dữ liệu thời gian thực của Inverter, Power Meter, Weather Station và đặc biệt là thông tin chi tiết của SmartLogger.
 
-## 📂 Cấu trúc dự án
+##  Cấu trúc dự án
 Dự án được viết bằng ngôn ngữ Go (Golang), chia thành các module logic:
 
 ```text
@@ -62,7 +62,7 @@ Tất cả dữ liệu được làm phẳng (flatten) để dễ dàng xử lý
 }
 ```
 
-## 🚀 Hướng dẫn thực thi
+##  Hướng dẫn thực thi
 
 ### Yêu cầu hệ thống
 - Hệ điều hành: Windows/Linux
@@ -79,7 +79,7 @@ go build -o fusion.exe ./src
 ./fusion.exe
 ```
 
-## 🛠️ Tính năng nổi bật
+##  Tính năng nổi bật
 - **SmartLogger Grouping**: Tự động nhóm thiết bị theo SmartLogger quản lý.
 - **Auto-Detection**: Tự động nhận diện Weather Station, Power Meter và Inverter để áp dụng bộ map dữ liệu riêng.
 - **Robust Parsing**: Xử lý được cả cấu trúc dữ liệu lồng nhau (Nested) và phẳng (Flat) từ API Huawei.
