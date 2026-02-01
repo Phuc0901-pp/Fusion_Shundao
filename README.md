@@ -25,7 +25,7 @@ Fusion/
 └── go.mod            # Quản lý dependencies
 ```
 
-## ⚙️ Cơ chế hoạt động & Định dạng dữ liệu
+##  Cơ chế hoạt động & Định dạng dữ liệu
 
 ### 1. Luồng xử lý logic
 1. **Login & Scrape**: Khởi động trình duyệt ngầm (headless), lấy token `Roarand`.
