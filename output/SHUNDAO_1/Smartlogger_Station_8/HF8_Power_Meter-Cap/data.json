@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930689,
+  "device_name": "HF8 Power Meter-Cap",
+  "device_id": "NE=50184308",
+  "data": {
+    "active_energy_export": 1526.45,
+    "active_energy_import": 4503516.02,
+    "active_power": -375536,
+    "power_factor": -0.991,
+    "reactive_power": -49401,
+    "status": "Normal",
+    "total_apparent_power": 378.772,
+    "voltage_a": 391.93,
+    "voltage_b": 275.07,
+    "voltage_c": 226.55
+  }
+}

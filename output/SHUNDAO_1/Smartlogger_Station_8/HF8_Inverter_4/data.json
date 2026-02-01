@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930687,
+  "device_name": "HF8 Inverter 4",
+  "device_id": "NE=50157023",
+  "data": {
+    "active_power": 54.147,
+    "daily_yield": 405.58,
+    "efficiency": 100,
+    "grid_frequency": 50.14,
+    "phase_a_current": 79.271,
+    "phase_a_voltage": 228.2,
+    "phase_b_current": 79.476,
+    "phase_b_voltage": 228,
+    "phase_c_current": 79.372,
+    "phase_c_voltage": 227.4,
+    "power_factor": 1,
+    "reactive_power": 1.316,
+    "status": "Grid connected",
+    "total_yield": 566501.67
+  }
+}

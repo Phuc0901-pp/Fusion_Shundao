@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930733,
+  "device_name": "HF18 Power Meter",
+  "device_id": "NE=50196862",
+  "data": {
+    "active_energy_export": 1028.92,
+    "active_energy_import": 7385294.83,
+    "active_power": -688449,
+    "power_factor": -0.995,
+    "reactive_power": -66685,
+    "status": "Normal",
+    "total_apparent_power": 691.672,
+    "voltage_a": 397.52,
+    "voltage_b": 399.66,
+    "voltage_c": 229.53
+  }
+}

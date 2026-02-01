@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930740,
+  "device_name": "HF20 Power Meter",
+  "device_id": "NE=50185288",
+  "data": {
+    "active_energy_export": "-",
+    "active_energy_import": "-",
+    "active_power": "-",
+    "power_factor": "-",
+    "reactive_power": "-",
+    "status": "-",
+    "total_apparent_power": "-",
+    "voltage_a": "-",
+    "voltage_b": "-",
+    "voltage_c": "-"
+  }
+}

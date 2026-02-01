@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930707,
+  "device_name": "HF22 Power Meter",
+  "device_id": "NE=50185353",
+  "data": {
+    "active_energy_export": 1643.64,
+    "active_energy_import": 5160648.88,
+    "active_power": -526351,
+    "power_factor": -0.995,
+    "reactive_power": -51289,
+    "status": "Normal",
+    "total_apparent_power": 528.844,
+    "voltage_a": 390.38,
+    "voltage_b": 391.45,
+    "voltage_c": 225.75
+  }
+}

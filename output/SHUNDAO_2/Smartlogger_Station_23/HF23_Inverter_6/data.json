@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930746,
+  "device_name": "HF23 Inverter 6",
+  "device_id": "NE=50127631",
+  "data": {
+    "active_power": 53.386,
+    "daily_yield": 404.09,
+    "efficiency": 100,
+    "grid_frequency": 50.14,
+    "phase_a_current": 77.212,
+    "phase_a_voltage": 230.6,
+    "phase_b_current": 77.367,
+    "phase_b_voltage": 229.8,
+    "phase_c_current": 77.556,
+    "phase_c_voltage": 230.7,
+    "power_factor": 0.996,
+    "reactive_power": 4.523,
+    "status": "Grid connected",
+    "total_yield": 581370.68
+  }
+}

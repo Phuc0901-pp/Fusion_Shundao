@@ -1,0 +1,82 @@
+{
+  "data": {
+    "buildCode": "2",
+    "data": [
+      {
+        "status": 1
+      },
+      {
+        "groupName": "groupOne",
+        "signals": [
+          {
+            "id": 19999,
+            "latestTime": 1757735200,
+            "name": "Status",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10001,
+            "name": "Wind speed",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10002,
+            "name": "Wind direction",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10003,
+            "name": "PV Temperature",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10004,
+            "name": "Ambient temperature",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10005,
+            "name": "Irradiance",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10006,
+            "name": "Daily irradiation",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          },
+          {
+            "id": 10009,
+            "name": "Daily irradiation(Energy)",
+            "realValue": "-",
+            "unit": "",
+            "value": "-"
+          }
+        ]
+      },
+      {
+        "pv2mppt": false
+      }
+    ],
+    "failCode": 0,
+    "params": [],
+    "success": true
+  },
+  "deviceDn": "NE=62974616",
+  "deviceName": "EMIC_Station2",
+  "siteName": "SHUNDAO1",
+  "timestamp": 1769849559
+}

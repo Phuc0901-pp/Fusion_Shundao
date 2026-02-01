@@ -1,0 +1,15 @@
+{
+  "timestamp": 1769930703,
+  "device_name": "Weather Station",
+  "device_id": "NE=50145414",
+  "data": {
+    "Ambient temperature": 34.5,
+    "Daily irradiation": 18.369,
+    "Daily irradiation(Energy)": 5.103,
+    "Irradiance": 712,
+    "PV Temperature": 46.3,
+    "Status": "Online",
+    "Wind direction": 45,
+    "Wind speed": 3
+  }
+}

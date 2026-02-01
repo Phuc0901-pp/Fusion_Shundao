@@ -1,0 +1,15 @@
+{
+  "timestamp": 1769930663,
+  "device_name": "EMI-EM02102236010976",
+  "device_id": "NE=62974616",
+  "data": {
+    "Ambient temperature": "-",
+    "Daily irradiation": "-",
+    "Daily irradiation(Energy)": "-",
+    "Irradiance": "-",
+    "PV Temperature": "-",
+    "Status": "-",
+    "Wind direction": "-",
+    "Wind speed": "-"
+  }
+}

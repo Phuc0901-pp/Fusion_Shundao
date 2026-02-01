@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930668,
+  "device_name": "HF2 Inverter 4",
+  "device_id": "NE=50152573",
+  "data": {
+    "active_power": 58.118,
+    "daily_yield": 416.93,
+    "efficiency": 100,
+    "grid_frequency": 50.13,
+    "phase_a_current": 82.839,
+    "phase_a_voltage": 235.8,
+    "phase_b_current": 83.666,
+    "phase_b_voltage": 233.7,
+    "phase_c_current": 83.324,
+    "phase_c_voltage": 233.7,
+    "power_factor": 1,
+    "reactive_power": 1.333,
+    "status": "Grid connected",
+    "total_yield": 573503.92
+  }
+}

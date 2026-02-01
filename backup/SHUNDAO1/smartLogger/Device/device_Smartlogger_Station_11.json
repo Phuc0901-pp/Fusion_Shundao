@@ -1,0 +1,62 @@
+{
+  "devices": [
+    {
+      "elementDn": "NE=50156849",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 1",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156855",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 2",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156851",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 3",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156853",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 4",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156852",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 5",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156854",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 6",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156850",
+      "mocId": 0,
+      "nodeName": "HF11 Inverter 7",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50184305",
+      "mocId": 0,
+      "nodeName": "HF11 Power Meter",
+      "status": "Connected",
+      "typeId": 23023
+    }
+  ],
+  "site": "SHUNDAO 1",
+  "smartLogger": "Smartlogger Station 11"
+}

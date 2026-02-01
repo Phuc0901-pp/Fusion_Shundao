@@ -1,0 +1,362 @@
+[
+  {
+    "id": "11001",
+    "latestTime": 1769849406,
+    "realValue": "749.7",
+    "value": "749.7"
+  },
+  {
+    "id": "11002",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14001",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11004",
+    "latestTime": 1769849406,
+    "realValue": "749.7",
+    "value": "749.7"
+  },
+  {
+    "id": "11005",
+    "latestTime": 1769849406,
+    "realValue": "4.57",
+    "value": "4.57"
+  },
+  {
+    "id": "14002",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11007",
+    "latestTime": 1769849406,
+    "realValue": "749.6",
+    "value": "749.6"
+  },
+  {
+    "id": "11008",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14003",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11010",
+    "latestTime": 1769849406,
+    "realValue": "749.6",
+    "value": "749.6"
+  },
+  {
+    "id": "11011",
+    "latestTime": 1769849406,
+    "realValue": "4.56",
+    "value": "4.56"
+  },
+  {
+    "id": "14004",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11013",
+    "latestTime": 1769849406,
+    "realValue": "755.6",
+    "value": "755.6"
+  },
+  {
+    "id": "11014",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14005",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11016",
+    "latestTime": 1769849406,
+    "realValue": "755.6",
+    "value": "755.6"
+  },
+  {
+    "id": "11017",
+    "latestTime": 1769849406,
+    "realValue": "4.50",
+    "value": "4.50"
+  },
+  {
+    "id": "14006",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11019",
+    "latestTime": 1769849406,
+    "realValue": "749.8",
+    "value": "749.8"
+  },
+  {
+    "id": "11020",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14007",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11022",
+    "latestTime": 1769849406,
+    "realValue": "749.8",
+    "value": "749.8"
+  },
+  {
+    "id": "11023",
+    "latestTime": 1769849406,
+    "realValue": "4.52",
+    "value": "4.52"
+  },
+  {
+    "id": "14008",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11025",
+    "latestTime": 1769849406,
+    "realValue": "755.9",
+    "value": "755.9"
+  },
+  {
+    "id": "11026",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14009",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11028",
+    "latestTime": 1769849406,
+    "realValue": "755.9",
+    "value": "755.9"
+  },
+  {
+    "id": "11029",
+    "latestTime": 1769849406,
+    "realValue": "4.50",
+    "value": "4.50"
+  },
+  {
+    "id": "14010",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11031",
+    "latestTime": 1769849406,
+    "realValue": "112.3",
+    "value": "112.3"
+  },
+  {
+    "id": "11032",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14011",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11034",
+    "latestTime": 1769849406,
+    "realValue": "112.3",
+    "value": "112.3"
+  },
+  {
+    "id": "11035",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14012",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11037",
+    "latestTime": 1769849406,
+    "realValue": "759.0",
+    "value": "759.0"
+  },
+  {
+    "id": "11038",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14013",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11040",
+    "latestTime": 1769849406,
+    "realValue": "759.0",
+    "value": "759.0"
+  },
+  {
+    "id": "11041",
+    "latestTime": 1769849406,
+    "realValue": "4.58",
+    "value": "4.58"
+  },
+  {
+    "id": "14014",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11043",
+    "latestTime": 1769849406,
+    "realValue": "760.2",
+    "value": "760.2"
+  },
+  {
+    "id": "11044",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14015",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11046",
+    "latestTime": 1769849406,
+    "realValue": "760.2",
+    "value": "760.2"
+  },
+  {
+    "id": "11047",
+    "latestTime": 1769849406,
+    "realValue": "4.48",
+    "value": "4.48"
+  },
+  {
+    "id": "14016",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11049",
+    "latestTime": 1769849406,
+    "realValue": "761.7",
+    "value": "761.7"
+  },
+  {
+    "id": "11050",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14017",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11052",
+    "latestTime": 1769849406,
+    "realValue": "761.7",
+    "value": "761.7"
+  },
+  {
+    "id": "11053",
+    "latestTime": 1769849406,
+    "realValue": "4.47",
+    "value": "4.47"
+  },
+  {
+    "id": "14018",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  },
+  {
+    "id": "11055",
+    "latestTime": 1769849406,
+    "realValue": "755.0",
+    "value": "755.0"
+  },
+  {
+    "id": "11056",
+    "latestTime": 1769849406,
+    "realValue": "0.00",
+    "value": "0.00"
+  },
+  {
+    "id": "14019",
+    "latestTime": 1769820616,
+    "realValue": "1",
+    "value": "Offline"
+  },
+  {
+    "id": "11058",
+    "latestTime": 1769849406,
+    "realValue": "755.0",
+    "value": "755.0"
+  },
+  {
+    "id": "11059",
+    "latestTime": 1769849406,
+    "realValue": "4.48",
+    "value": "4.48"
+  },
+  {
+    "id": "14020",
+    "latestTime": 1769820616,
+    "realValue": "2",
+    "value": "Single string – normal"
+  }
+]

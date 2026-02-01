@@ -1,0 +1,83 @@
+{
+  "devices": [
+    {
+      "elementDn": "NE=50153156",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 1",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153157",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 2",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153155",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 3",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153166",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 4",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153158",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 5",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153165",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 6",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50153164",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 7",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50152910",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 8",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156827",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 9",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50156826",
+      "mocId": 0,
+      "nodeName": "HF10 Inverter 10",
+      "status": "Connected",
+      "typeId": 23022
+    },
+    {
+      "elementDn": "NE=50184306",
+      "mocId": 0,
+      "nodeName": "HF10 Power Meter-Cap",
+      "status": "Connected",
+      "typeId": 23023
+    }
+  ],
+  "site": "SHUNDAO 1",
+  "smartLogger": "Smartlogger Station 10"
+}

@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930692,
+  "device_name": "HF9 Power Meter",
+  "device_id": "NE=50184307",
+  "data": {
+    "active_energy_export": 1532.07,
+    "active_energy_import": 4894722.74,
+    "active_power": -529205,
+    "power_factor": -0.998,
+    "reactive_power": -26979,
+    "status": "Normal",
+    "total_apparent_power": 529.893,
+    "voltage_a": 395.23,
+    "voltage_b": 394.31,
+    "voltage_c": 227.82
+  }
+}

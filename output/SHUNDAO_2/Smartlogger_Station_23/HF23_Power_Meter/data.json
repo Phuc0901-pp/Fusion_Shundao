@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930747,
+  "device_name": "HF23 Power Meter",
+  "device_id": "NE=50185294",
+  "data": {
+    "active_energy_export": 2098.41,
+    "active_energy_import": 5295389.94,
+    "active_power": -523719,
+    "power_factor": -0.994,
+    "reactive_power": -53669,
+    "status": "Normal",
+    "total_apparent_power": 526.462,
+    "voltage_a": 399.45,
+    "voltage_b": 399.71,
+    "voltage_c": 231.01
+  }
+}

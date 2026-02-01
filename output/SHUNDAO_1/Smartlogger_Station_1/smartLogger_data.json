@@ -1,0 +1,13 @@
+{
+  "timestamp": 1769930664,
+  "device_name": "Smartlogger Station 1",
+  "device_id": "NE=50162841",
+  "data": {
+    "Device Name": "Smartlogger Station 1",
+    "Maximum azimuth (°)": 30,
+    "device_model": "Smart Logger",
+    "ip_address": "103.199.37.40",
+    "serial_number": "1020C0118280",
+    "software_version": "Smartlogger V300R023C10SPC612"
+  }
+}

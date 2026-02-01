@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930743,
+  "device_name": "HF21 Inverter 7",
+  "device_id": "NE=50127650",
+  "data": {
+    "active_power": 53.412,
+    "daily_yield": 402.31,
+    "efficiency": 100,
+    "grid_frequency": 50.14,
+    "phase_a_current": 79.976,
+    "phase_a_voltage": 220.9,
+    "phase_b_current": 79.889,
+    "phase_b_voltage": 223.7,
+    "phase_c_current": 80.018,
+    "phase_c_voltage": 223.5,
+    "power_factor": 0.996,
+    "reactive_power": 4.523,
+    "status": "Grid connected",
+    "total_yield": 577487.86
+  }
+}

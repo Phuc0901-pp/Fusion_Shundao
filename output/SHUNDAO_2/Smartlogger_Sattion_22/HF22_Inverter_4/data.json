@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930705,
+  "device_name": "HF22 Inverter 4",
+  "device_id": "NE=50166031",
+  "data": {
+    "active_power": 55.999,
+    "daily_yield": 389.85,
+    "efficiency": 100,
+    "grid_frequency": 50.13,
+    "phase_a_current": 82.906,
+    "phase_a_voltage": 225,
+    "phase_b_current": 83.251,
+    "phase_b_voltage": 226.2,
+    "phase_c_current": 83.278,
+    "phase_c_voltage": 225.6,
+    "power_factor": 0.997,
+    "reactive_power": 4.497,
+    "status": "Grid connected",
+    "total_yield": 570341.54
+  }
+}

@@ -1,0 +1,314 @@
+package formatter
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+
+	"fusion/src/api"
+)
+
+// FormatInverterData converts raw inverter response to FusionFormattedData
+func FormatInverterData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+	output := &FusionFormattedData{
+		Timestamp:  time.Now().Unix(),
+		DeviceName: deviceName,
+		DeviceID:   deviceID,
+		Data:       make(map[string]interface{}),
+	}
+
+	// Try to extract signals map
+	signals := extractSignals(raw)
+	if signals == nil {
+		return output
+	}
+
+	// Map known signals
+	for id, fieldName := range InverterSignalMap {
+		if val, ok := getSignalValue(signals, id); ok {
+			output.Data[fieldName] = val
+		}
+	}
+
+	return output
+}
+
+// FormatStringData converts raw string/MPPT response to FusionFormattedData
+func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+	output := &FusionFormattedData{
+		Timestamp:  time.Now().Unix(),
+		DeviceName: deviceName,
+		DeviceID:   deviceID,
+		Data:       make(map[string]interface{}),
+	}
+
+	signals := extractSignals(raw)
+	if signals == nil {
+		return output
+	}
+
+	// Logic from main.go: Process strings 1-24
+	// Group 1: 11001-11067 (step 3)
+	for i := 0; i < 24; i++ {
+		strIndex := i + 1
+
+		// Voltage
+		volID := fmt.Sprintf("%d", 11001+i*3)
+		if val, ok := getSignalValue(signals, volID); ok {
+			output.Data[GetStringPVField(strIndex, "voltage")] = val
+		}
+
+		// Current
+		curID := fmt.Sprintf("%d", 11002+i*3)
+		if val, ok := getSignalValue(signals, curID); ok {
+			output.Data[GetStringPVField(strIndex, "current")] = val
+		}
+	}
+
+	// Logic from main.go: Process strings 25-48
+	// Group 2: 11070-11118 (step 2)
+	for i := 0; i < 24; i++ {
+		strIndex := i + 25
+
+		// Voltage
+		volID := fmt.Sprintf("%d", 11070+i*2)
+		if val, ok := getSignalValue(signals, volID); ok {
+			output.Data[GetStringPVField(strIndex, "voltage")] = val
+		}
+
+		// Current
+		curID := fmt.Sprintf("%d", 11071+i*2)
+		if val, ok := getSignalValue(signals, curID); ok {
+			output.Data[GetStringPVField(strIndex, "current")] = val
+		}
+	}
+
+	return output
+}
+
+// FormatPowerMeterData converts raw meter response
+func FormatPowerMeterData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+	output := &FusionFormattedData{
+		Timestamp:  time.Now().Unix(),
+		DeviceName: deviceName,
+		DeviceID:   deviceID,
+		Data:       make(map[string]interface{}),
+	}
+
+	signals := extractSignals(raw)
+	if signals == nil {
+		return output
+	}
+
+	for id, fieldName := range PowerMeterSignalMap {
+		if val, ok := getSignalValue(signals, id); ok {
+			output.Data[fieldName] = val
+		}
+	}
+
+	return output
+}
+
+// FormatStationOverview combines KPI and Social data
+func FormatStationOverview(kpi *api.StationKPI, social *api.SocialContribution) *StationFormattedData {
+	output := &StationFormattedData{
+		Timestamp: time.Now().Unix(),
+		SiteName:  kpi.StationName,
+		SiteID:    kpi.StationDn,
+		Data:      make(map[string]interface{}),
+	}
+
+	// KPI Data
+	if kpi != nil {
+		output.Data["daily_energy"] = kpi.DailyEnergy
+		output.Data["cumulative_energy"] = kpi.CumulativeEnergy
+		output.Data["daily_income"] = kpi.DailyIncome
+		output.Data["inverter_power"] = kpi.InverterPower
+	}
+
+	// Social Data
+	if social != nil {
+		output.Data["co2_reduction"] = social.CO2Reduction
+		output.Data["equivalent_trees"] = social.EquivalentTreePlanting
+		output.Data["standard_coal_savings"] = social.StandardCoalSavings
+	}
+
+	return output
+}
+
+// Helpers
+
+// extractSignals attempts to find the signals map/list from various response structures
+func extractSignals(raw map[string]interface{}) map[string]interface{} {
+	// Root "data" can be a Map or List
+	rawDat := raw["data"]
+	if rawDat == nil {
+		return nil
+	}
+
+	allSignals := make(map[string]interface{})
+
+	// Case 1: data is a List (FetchInverterRealtimeData structure)
+	// { "data": [ { "signals": [...] }, { "signals": [...] } ] }
+	// Case 1: data is a List
+	if dataList, ok := rawDat.([]interface{}); ok {
+		// Approach: Scan list to see if ANY item contains "signals" key.
+		// If yes -> It's Nested Structure (Inverter/Meter).
+		// If no -> Assume it's Flat Structure (SmartLogger) if items have "id".
+
+		isNested := false
+		for _, item := range dataList {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				if _, hasSignals := itemMap["signals"]; hasSignals {
+					isNested = true
+					break
+				}
+			}
+		}
+
+		if isNested {
+			fmt.Println("DEBUG: extractSignals detected NESTED structure")
+			// Structure A: Nested (Inverter)
+			for _, item := range dataList {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if sigList, ok := itemMap["signals"].([]interface{}); ok {
+						mergeSignals(allSignals, sigList)
+					}
+				}
+			}
+		} else {
+			fmt.Println("DEBUG: extractSignals detected FLAT structure")
+			// Structure B: Flat (SmartLogger)
+			// Treat the whole list as signals
+			mergeSignals(allSignals, dataList)
+		}
+
+		return allSignals
+	}
+
+	// Case 2: data is a Map (FetchInverterStringData structure)
+	// { "data": { "signals": { "11001": {...}, "11002": {...} } } }
+	if dataMap, ok := rawDat.(map[string]interface{}); ok {
+		// Sub-case 2a: data.signals is Map
+		if sigMap, ok := dataMap["signals"].(map[string]interface{}); ok {
+			return sigMap
+		}
+
+		// Sub-case 2b: data.signals is List (rare but possible)
+		if sigList, ok := dataMap["signals"].([]interface{}); ok {
+			mergeSignals(allSignals, sigList)
+			return allSignals
+		}
+
+		// Sub-case 2c: Nested data.data logic (Legacy support if needed)
+		if subData, ok := dataMap["data"].([]interface{}); ok {
+			for _, item := range subData {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if sigList, ok := itemMap["signals"].([]interface{}); ok {
+						mergeSignals(allSignals, sigList)
+					}
+				}
+			}
+			return allSignals
+		}
+	}
+
+	return nil
+}
+
+// mergeSignals helper to add list-based signals into the map
+func mergeSignals(target map[string]interface{}, sourceList []interface{}) {
+	fmt.Printf("DEBUG: mergeSignals processing %d items\n", len(sourceList))
+	for i, s := range sourceList {
+		if sMap, ok := s.(map[string]interface{}); ok {
+			// Extract ID
+			var idStr string
+			if idNum, ok := sMap["id"].(float64); ok {
+				idStr = fmt.Sprintf("%.0f", idNum) // 10025.0 -> "10025"
+			} else if idStrVal, ok := sMap["id"].(string); ok {
+				idStr = idStrVal
+			} else {
+				// Debug missing ID
+				if i < 3 { // Log first few failures only
+					fmt.Printf("DEBUG: Item %d has no valid ID. Keys: %v\n", i, getKeys(sMap))
+				}
+			}
+
+			// Add to map if valid ID
+			if idStr != "" {
+				target[idStr] = sMap
+			}
+		} else {
+			if i < 3 {
+				fmt.Printf("DEBUG: Item %d is not a map. Type: %T\n", i, s)
+			}
+		}
+	}
+}
+
+func getKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// getSignalValue extracts the value from a signal item
+func getSignalValue(signals map[string]interface{}, id string) (interface{}, bool) {
+	item, ok := signals[id]
+	if !ok {
+		return nil, false
+	}
+
+	itemMap, ok := item.(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+
+	val, ok := itemMap["value"]
+	if !ok {
+		return nil, false
+	}
+
+	// Convert numerical strings to float if possible, else return string
+	if strVal, ok := val.(string); ok {
+		// Ignore "Unidentified" or empty
+		if strVal == "Unidentified" || strVal == "" || strVal == "--" {
+			return nil, false
+		}
+		if fVal, err := strconv.ParseFloat(strVal, 64); err == nil {
+			return fVal, true
+		}
+		return strVal, true
+	}
+
+	return val, true
+}
+
+// FormatSmartLoggerData converts raw data (list of parameters) to formatted map
+func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+	output := &FusionFormattedData{
+		Timestamp:  time.Now().Unix(),
+		DeviceName: deviceName,
+		DeviceID:   deviceID,
+		Data:       make(map[string]interface{}),
+	}
+
+	// Debug
+	fmt.Printf("DEBUG: FormatSmartLoggerData Raw keys: %v\n", len(raw))
+
+	// SmartLogger data like { "data": [ {"name": "IP", "value": "..."}, ... ] }
+	rawKV := GetKeyValues(raw)
+	fmt.Printf("DEBUG: GetKeyValues returned %d items\n", len(rawKV))
+
+	for key, val := range rawKV {
+		if stdKey, ok := SmartLoggerFieldMap[key]; ok {
+			output.Data[stdKey] = val
+		} else {
+			output.Data[key] = val
+		}
+	}
+
+	return output
+}

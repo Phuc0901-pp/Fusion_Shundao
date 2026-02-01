@@ -1,0 +1,17 @@
+{
+  "batteryCapacity": 0,
+  "cumulativeChargeCapacity": 0,
+  "cumulativeDischargeCapacity": 0,
+  "cumulativeEnergy": 58389727.16,
+  "currency": 25,
+  "dailyChargeCapacity": 0,
+  "dailyDischargeCapacity": 0,
+  "dailyEnergy": 36675.69,
+  "dailyIncome": 52892266.8,
+  "inverterPower": 10850,
+  "isPriceConfigured": true,
+  "stationDn": "NE=50127734",
+  "stationName": "SHUNDAO 2",
+  "totalChargeEnergy": 0,
+  "totalDischargeEnergy": 0
+}

@@ -1,0 +1,16 @@
+{
+  "childList": [
+    {
+      "elementDn": "NE=50143101",
+      "nodeName": "SHUNDAO 1",
+      "parentDn": "NE=50737657",
+      "status": "Connected"
+    },
+    {
+      "elementDn": "NE=50127734",
+      "nodeName": "SHUNDAO 2",
+      "parentDn": "NE=50737657",
+      "status": "Connected"
+    }
+  ]
+}

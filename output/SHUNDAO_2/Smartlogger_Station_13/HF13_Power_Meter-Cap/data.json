@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930715,
+  "device_name": "HF13 Power Meter-Cap",
+  "device_id": "NE=50185595",
+  "data": {
+    "active_energy_export": 6644.41,
+    "active_energy_import": 4384559.32,
+    "active_power": -469504,
+    "power_factor": -0.976,
+    "reactive_power": -104665,
+    "status": "Normal",
+    "total_apparent_power": 481.029,
+    "voltage_a": 400.06,
+    "voltage_b": 402.99,
+    "voltage_c": 230.98
+  }
+}

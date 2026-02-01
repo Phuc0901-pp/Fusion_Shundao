@@ -1,0 +1,17 @@
+{
+  "timestamp": 1769930737,
+  "device_name": "HF19 Power Meter-Cap",
+  "device_id": "NE=50185301",
+  "data": {
+    "active_energy_export": 4429.96,
+    "active_energy_import": 5191825.76,
+    "active_power": -479879,
+    "power_factor": -0.99,
+    "reactive_power": -67406,
+    "status": "Normal",
+    "total_apparent_power": 484.59,
+    "voltage_a": 384.95,
+    "voltage_b": 385.63,
+    "voltage_c": 222.68
+  }
+}

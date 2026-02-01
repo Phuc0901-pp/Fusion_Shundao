@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930728,
+  "device_name": "HF17 Inverter 7",
+  "device_id": "NE=50196826",
+  "data": {
+    "active_power": 61.11,
+    "daily_yield": 435.46,
+    "efficiency": 100,
+    "grid_frequency": 50.13,
+    "phase_a_current": 88.896,
+    "phase_a_voltage": 230.5,
+    "phase_b_current": 88.92,
+    "phase_b_voltage": 228.2,
+    "phase_c_current": 89.09,
+    "phase_c_voltage": 230.1,
+    "power_factor": 0.997,
+    "reactive_power": 4.551,
+    "status": "Grid connected",
+    "total_yield": 458575.78
+  }
+}

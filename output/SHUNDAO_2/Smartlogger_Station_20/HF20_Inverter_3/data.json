@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930738,
+  "device_name": "HF20 Inverter 3",
+  "device_id": "NE=50127672",
+  "data": {
+    "active_power": 52.876,
+    "daily_yield": 392.28,
+    "efficiency": 100,
+    "grid_frequency": 50.13,
+    "phase_a_current": 75.534,
+    "phase_a_voltage": 233.3,
+    "phase_b_current": 75.216,
+    "phase_b_voltage": 232.6,
+    "phase_c_current": 75.268,
+    "phase_c_voltage": 235.8,
+    "power_factor": 0.996,
+    "reactive_power": 4.457,
+    "status": "Grid connected",
+    "total_yield": 415701.03
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930724,
+  "device_name": "HF16 Inverter 6",
+  "device_id": "NE=50176238",
+  "data": {
+    "active_power": 60.739,
+    "daily_yield": 438.06,
+    "efficiency": 100,
+    "grid_frequency": 50.14,
+    "phase_a_current": 89.324,
+    "phase_a_voltage": 227.6,
+    "phase_b_current": 89.336,
+    "phase_b_voltage": 226.2,
+    "phase_c_current": 89.4,
+    "phase_c_voltage": 226.3,
+    "power_factor": 0.997,
+    "reactive_power": 4.532,
+    "status": "Grid connected",
+    "total_yield": 587321.21
+  }
+}

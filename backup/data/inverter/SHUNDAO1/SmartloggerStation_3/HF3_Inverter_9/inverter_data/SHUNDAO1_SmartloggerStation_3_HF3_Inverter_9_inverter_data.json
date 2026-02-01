@@ -1,0 +1,187 @@
+{
+  "buildCode": "2",
+  "data": [
+    {
+      "status": 1
+    },
+    {
+      "groupName": "Others",
+      "signals": [
+        {
+          "id": 10025,
+          "latestTime": 1769849404,
+          "name": "Inverter status",
+          "realValue": "512",
+          "unit": "",
+          "value": "Grid connected"
+        },
+        {
+          "id": 10032,
+          "latestTime": 1769849404,
+          "name": "Daily energy",
+          "realValue": "350.22",
+          "unit": "kWh",
+          "value": "350.22"
+        },
+        {
+          "id": 10029,
+          "latestTime": 1769849404,
+          "name": "Total yield",
+          "realValue": "562909.66",
+          "unit": "kWh",
+          "value": "562909.66"
+        },
+        {
+          "id": 10018,
+          "latestTime": 1769849404,
+          "name": "Active power",
+          "realValue": "30.064",
+          "unit": "kW",
+          "value": "30.064"
+        },
+        {
+          "id": 10019,
+          "latestTime": 1769849404,
+          "name": "Output reactive power",
+          "realValue": "-0.432",
+          "unit": "kvar",
+          "value": "-0.432"
+        },
+        {
+          "id": 10006,
+          "latestTime": 1769826816,
+          "name": "Inverter rated power",
+          "realValue": "100.000",
+          "unit": "kW",
+          "value": "100.000"
+        },
+        {
+          "id": 10020,
+          "latestTime": 1769849404,
+          "name": "Power factor",
+          "realValue": "1.000",
+          "unit": "",
+          "value": "1.000"
+        },
+        {
+          "id": 10021,
+          "latestTime": 1769849404,
+          "name": "Grid frequency",
+          "realValue": "50.19",
+          "unit": "Hz",
+          "value": "50.19"
+        },
+        {
+          "id": 21029,
+          "latestTime": 1769826817,
+          "name": "Output mode",
+          "realValue": "0",
+          "unit": "",
+          "value": "Three-phase four-wire system"
+        },
+        {
+          "id": 10014,
+          "latestTime": 1769849404,
+          "name": "Grid phase A current",
+          "realValue": "42.549",
+          "unit": "A",
+          "value": "42.549"
+        },
+        {
+          "id": 10015,
+          "latestTime": 1769849404,
+          "name": "Grid phase B current",
+          "realValue": "43.059",
+          "unit": "A",
+          "value": "43.059"
+        },
+        {
+          "id": 10016,
+          "latestTime": 1769849404,
+          "name": "Grid phase C current",
+          "realValue": "42.971",
+          "unit": "A",
+          "value": "42.971"
+        },
+        {
+          "id": 10011,
+          "latestTime": 1769849404,
+          "name": "Phase A voltage",
+          "realValue": "232.3",
+          "unit": "V",
+          "value": "232.3"
+        },
+        {
+          "id": 10012,
+          "latestTime": 1769849404,
+          "name": "Phase B voltage",
+          "realValue": "235.2",
+          "unit": "V",
+          "value": "235.2"
+        },
+        {
+          "id": 10013,
+          "latestTime": 1769849404,
+          "name": "Phase C voltage",
+          "realValue": "233.4",
+          "unit": "V",
+          "value": "233.4"
+        },
+        {
+          "id": 10027,
+          "latestTime": 1769826816,
+          "name": "Inverter startup time",
+          "realValue": "2026-01-31 06:10:15",
+          "unit": "",
+          "value": "2026-01-31 06:10:15"
+        },
+        {
+          "id": 10028,
+          "latestTime": 1769826816,
+          "name": "Inverter shutdown time",
+          "realValue": "2026-01-30 18:15:05",
+          "unit": "",
+          "value": "2026-01-30 18:15:05"
+        },
+        {
+          "id": 10023,
+          "latestTime": 1769849404,
+          "name": "Internal temperature",
+          "realValue": "52.9",
+          "unit": "℃",
+          "value": "52.9"
+        },
+        {
+          "id": 10024,
+          "latestTime": 1769849404,
+          "name": "Insulation resistance",
+          "realValue": "0.179",
+          "unit": "MΩ",
+          "value": "0.179"
+        },
+        {
+          "id": 230223000,
+          "latestTime": 1769826816,
+          "name": "Active power adjustment status",
+          "realValue": "P=100.0% (Active power derating by percentage)",
+          "unit": "",
+          "value": "P=100.0% (Active power derating by percentage)"
+        },
+        {
+          "id": 230223001,
+          "latestTime": 1769844496,
+          "name": "Reactive power adjustment status",
+          "realValue": "Q/S=-0.004(Q/S adjustment)",
+          "unit": "",
+          "value": "Q/S=-0.004(Q/S adjustment)"
+        }
+      ]
+    },
+    {
+      "pv2mppt": false
+    }
+  ],
+  "failCode": 0,
+  "params": [],
+  "success": true
+}

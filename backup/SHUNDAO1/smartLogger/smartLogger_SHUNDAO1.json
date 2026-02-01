@@ -1,0 +1,77 @@
+{
+  "devices": [
+    {
+      "elementDn": "NE=50143102",
+      "nodeName": "Master Smartlogger",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50162841",
+      "nodeName": "Smartlogger Station 1",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50155145",
+      "nodeName": "Smartlogger Station 2",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50163743",
+      "nodeName": "Smartlogger Station 4",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50163736",
+      "nodeName": "Smartlogger Station 5",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143103",
+      "nodeName": "Smartlogger Station 6",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143098",
+      "nodeName": "Smartlogger Station 7",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143095",
+      "nodeName": "Smartlogger Station 8",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143097",
+      "nodeName": "Smartlogger Station 9",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143096",
+      "nodeName": "Smartlogger Station 10",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50143099",
+      "nodeName": "Smartlogger Station 11",
+      "status": "Connected",
+      "typeId": 23020
+    },
+    {
+      "elementDn": "NE=50155162",
+      "nodeName": "SmartloggerStation 3",
+      "status": "Connected",
+      "typeId": 23020
+    }
+  ],
+  "site": "SHUNDAO 1"
+}

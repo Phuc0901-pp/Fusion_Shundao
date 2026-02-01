@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930714,
+  "device_name": "HF13 Inverter 9",
+  "device_id": "NE=50127739",
+  "data": {
+    "active_power": 18.949,
+    "daily_yield": 130.31,
+    "efficiency": 40,
+    "grid_frequency": 50.13,
+    "phase_a_current": 27.489,
+    "phase_a_voltage": 228.1,
+    "phase_b_current": 27.491,
+    "phase_b_voltage": 229.5,
+    "phase_c_current": 27.452,
+    "phase_c_voltage": 229.1,
+    "power_factor": 0.995,
+    "reactive_power": 1.746,
+    "status": "Grid connected",
+    "total_yield": 193143.13
+  }
+}

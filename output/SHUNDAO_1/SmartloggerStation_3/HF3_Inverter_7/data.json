@@ -1,0 +1,21 @@
+{
+  "timestamp": 1769930701,
+  "device_name": "HF3 Inverter 7",
+  "device_id": "NE=50155155",
+  "data": {
+    "active_power": 59.489,
+    "daily_yield": 405.03,
+    "efficiency": 100,
+    "grid_frequency": 50.13,
+    "phase_a_current": 84.7,
+    "phase_a_voltage": 235.2,
+    "phase_b_current": 84.531,
+    "phase_b_voltage": 235.7,
+    "phase_c_current": 84.58,
+    "phase_c_voltage": 234.2,
+    "power_factor": 1,
+    "reactive_power": 1.314,
+    "status": "Grid connected",
+    "total_yield": 565280.8
+  }
+}

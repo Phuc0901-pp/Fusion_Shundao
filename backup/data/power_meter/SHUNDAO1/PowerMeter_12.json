@@ -1,0 +1,187 @@
+{
+  "buildCode": "2",
+  "data": [
+    {
+      "status": 1
+    },
+    {
+      "groupName": "groupOne",
+      "signals": [
+        {
+          "id": 10001,
+          "latestTime": 1769849404,
+          "name": "Status",
+          "realValue": "1",
+          "unit": "",
+          "value": "Normal"
+        },
+        {
+          "id": 10004,
+          "latestTime": 1769849404,
+          "name": "Active power",
+          "realValue": "-193466",
+          "unit": "W",
+          "value": "-193466"
+        },
+        {
+          "id": 10005,
+          "latestTime": 1769849404,
+          "name": "Reactive power",
+          "realValue": "20859",
+          "unit": "var",
+          "value": "20859"
+        },
+        {
+          "id": 10006,
+          "latestTime": 1769849404,
+          "name": "Power factor",
+          "realValue": "0.994",
+          "unit": "",
+          "value": "0.994"
+        },
+        {
+          "id": 10025,
+          "latestTime": 1769849404,
+          "name": "Total apparent power",
+          "realValue": "194.587",
+          "unit": "kVA",
+          "value": "194.587"
+        },
+        {
+          "id": 10009,
+          "latestTime": 1769849404,
+          "name": "Reverse active energy",
+          "realValue": "3953485.91",
+          "unit": "kWh",
+          "value": "3953485.91"
+        },
+        {
+          "id": 10008,
+          "latestTime": 1769849404,
+          "name": "Total positive active electricity",
+          "realValue": "2633.15",
+          "unit": "kWh",
+          "value": "2633.15"
+        },
+        {
+          "id": 10024,
+          "latestTime": 1769849404,
+          "name": "Reverse reactive energy",
+          "realValue": "1735776.64",
+          "unit": "kvarh",
+          "value": "1735776.64"
+        },
+        {
+          "id": 10023,
+          "latestTime": 1769849404,
+          "name": "Total positive reactive electricity",
+          "realValue": "12492.21",
+          "unit": "kvarh",
+          "value": "12492.21"
+        },
+        {
+          "id": 10016,
+          "latestTime": 1769849404,
+          "name": "AB line voltage",
+          "realValue": "407.96",
+          "unit": "V",
+          "value": "407.96"
+        },
+        {
+          "id": 10017,
+          "latestTime": 1769849404,
+          "name": "BC line voltage",
+          "realValue": "404.61",
+          "unit": "V",
+          "value": "404.61"
+        },
+        {
+          "id": 10018,
+          "latestTime": 1769849404,
+          "name": "CA line voltage",
+          "realValue": "405.32",
+          "unit": "V",
+          "value": "405.32"
+        },
+        {
+          "id": 10002,
+          "latestTime": 1769849404,
+          "name": "Phase A voltage",
+          "realValue": "235.11",
+          "unit": "V",
+          "value": "235.11"
+        },
+        {
+          "id": 10010,
+          "latestTime": 1769849404,
+          "name": "Phase B voltage",
+          "realValue": "234.74",
+          "unit": "V",
+          "value": "234.74"
+        },
+        {
+          "id": 10011,
+          "latestTime": 1769849404,
+          "name": "Phase C voltage",
+          "realValue": "233.30",
+          "unit": "V",
+          "value": "233.30"
+        },
+        {
+          "id": 10003,
+          "latestTime": 1769849404,
+          "name": "Phase A current",
+          "realValue": "275.5",
+          "unit": "A",
+          "value": "275.5"
+        },
+        {
+          "id": 10012,
+          "latestTime": 1769849404,
+          "name": "Phase B current",
+          "realValue": "280.4",
+          "unit": "A",
+          "value": "280.4"
+        },
+        {
+          "id": 10013,
+          "latestTime": 1769849404,
+          "name": "Phase C current",
+          "realValue": "274.3",
+          "unit": "A",
+          "value": "274.3"
+        },
+        {
+          "id": 10019,
+          "latestTime": 1769849404,
+          "name": "Phase A active power",
+          "realValue": "-64365",
+          "unit": "W",
+          "value": "-64365"
+        },
+        {
+          "id": 10020,
+          "latestTime": 1769849404,
+          "name": "Phase B active power",
+          "realValue": "-65465",
+          "unit": "W",
+          "value": "-65465"
+        },
+        {
+          "id": 10021,
+          "latestTime": 1769849404,
+          "name": "Phase C active power",
+          "realValue": "-63636",
+          "unit": "W",
+          "value": "-63636"
+        }
+      ]
+    },
+    {
+      "pv2mppt": false
+    }
+  ],
+  "failCode": 0,
+  "params": [],
+  "success": true
+}
