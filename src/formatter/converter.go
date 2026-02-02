@@ -15,7 +15,7 @@ func FormatInverterData(raw map[string]interface{}, deviceName, deviceID string)
 		Timestamp:  time.Now().Unix(),
 		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
-		Data:       make(map[string]interface{}),
+		Data:       make(OrderedDataMap),
 	}
 
 	// Try to extract signals map
@@ -40,7 +40,7 @@ func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *
 		Timestamp:  time.Now().Unix(),
 		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
-		Data:       make(map[string]interface{}),
+		Data:       make(OrderedDataMap),
 	}
 
 	signals := extractSignals(raw)
@@ -48,21 +48,41 @@ func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *
 		return output
 	}
 
+	// Helper to check if value is non-zero
+	isNonZero := func(val interface{}) bool {
+		if v, ok := val.(float64); ok {
+			return v != 0
+		}
+		if v, ok := val.(string); ok {
+			f, err := strconv.ParseFloat(v, 64)
+			return err == nil && f != 0
+		}
+		return false
+	}
+
 	// Logic from main.go: Process strings 1-24
 	// Group 1: 11001-11067 (step 3)
 	for i := 0; i < 24; i++ {
 		strIndex := i + 1
-
-		// Voltage
 		volID := fmt.Sprintf("%d", 11001+i*3)
-		if val, ok := getSignalValue(signals, volID); ok {
-			output.Data[GetStringPVField(strIndex, "voltage")] = val
-		}
-
-		// Current
 		curID := fmt.Sprintf("%d", 11002+i*3)
-		if val, ok := getSignalValue(signals, curID); ok {
-			output.Data[GetStringPVField(strIndex, "current")] = val
+		statusID := fmt.Sprintf("%d", 14000+strIndex)
+
+		volVal, volOk := getSignalValue(signals, volID)
+		curVal, curOk := getSignalValue(signals, curID)
+		statusVal, statusOk := getSignalValue(signals, statusID)
+
+		// Include if status exists OR if there are non-zero values
+		if statusOk || (volOk && isNonZero(volVal)) || (curOk && isNonZero(curVal)) {
+			if volOk {
+				output.Data[GetStringPVField(strIndex, "voltage")] = volVal
+			}
+			if curOk {
+				output.Data[GetStringPVField(strIndex, "current")] = curVal
+			}
+			if statusOk {
+				output.Data[GetStringPVField(strIndex, "status")] = statusVal
+			}
 		}
 	}
 
@@ -70,17 +90,24 @@ func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *
 	// Group 2: 11070-11118 (step 2)
 	for i := 0; i < 24; i++ {
 		strIndex := i + 25
-
-		// Voltage
 		volID := fmt.Sprintf("%d", 11070+i*2)
-		if val, ok := getSignalValue(signals, volID); ok {
-			output.Data[GetStringPVField(strIndex, "voltage")] = val
-		}
-
-		// Current
 		curID := fmt.Sprintf("%d", 11071+i*2)
-		if val, ok := getSignalValue(signals, curID); ok {
-			output.Data[GetStringPVField(strIndex, "current")] = val
+		statusID := fmt.Sprintf("%d", 14000+strIndex)
+
+		volVal, volOk := getSignalValue(signals, volID)
+		curVal, curOk := getSignalValue(signals, curID)
+		statusVal, statusOk := getSignalValue(signals, statusID)
+
+		if statusOk || (volOk && isNonZero(volVal)) || (curOk && isNonZero(curVal)) {
+			if volOk {
+				output.Data[GetStringPVField(strIndex, "voltage")] = volVal
+			}
+			if curOk {
+				output.Data[GetStringPVField(strIndex, "current")] = curVal
+			}
+			if statusOk {
+				output.Data[GetStringPVField(strIndex, "status")] = statusVal
+			}
 		}
 	}
 
@@ -93,7 +120,7 @@ func FormatPowerMeterData(raw map[string]interface{}, deviceName, deviceID strin
 		Timestamp:  time.Now().Unix(),
 		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
-		Data:       make(map[string]interface{}),
+		Data:       make(OrderedDataMap),
 	}
 
 	signals := extractSignals(raw)
@@ -111,12 +138,13 @@ func FormatPowerMeterData(raw map[string]interface{}, deviceName, deviceID strin
 }
 
 // FormatStationOverview combines KPI and Social data
+// FormatStationOverview combines KPI and Social data
 func FormatStationOverview(kpi *api.StationKPI, social *api.SocialContribution) *StationFormattedData {
 	output := &StationFormattedData{
 		Timestamp: time.Now().Unix(),
 		SiteName:  kpi.StationName,
 		SiteID:    kpi.StationDn,
-		Data:      make(map[string]interface{}),
+		Data:      make(OrderedDataMap),
 	}
 
 	// KPI Data
@@ -293,7 +321,7 @@ func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID stri
 		Timestamp:  time.Now().Unix(),
 		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
-		Data:       make(map[string]interface{}),
+		Data:       make(OrderedDataMap),
 	}
 
 	// Debug

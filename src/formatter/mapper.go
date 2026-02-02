@@ -40,7 +40,7 @@ var PowerMeterSignalMap = map[string]string{
 // index: 1-based index of the string
 // signalType: "voltage" or "current"
 func GetStringPVField(index int, signalType string) string {
-	return fmt.Sprintf("pv%d_%s", index, signalType)
+	return fmt.Sprintf("pv%02d_%s", index, signalType)
 }
 
 // SensorFieldMap maps display names to standardized field names
