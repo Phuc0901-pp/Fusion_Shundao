@@ -175,12 +175,8 @@ func main() {
 					fmt.Printf("        * Sensor: %s\n", deviceName)
 					sensorData, err := fetcher.FetchEMICData(ctx, device.ElementDn)
 					if err == nil && sensorData != nil {
-						fmtData := &formatter.FusionFormattedData{
-							Timestamp:  time.Now().Unix(),
-							DeviceName: device.NodeName,
-							DeviceID:   device.ElementDn,
-							Data:       formatter.GetKeyValues(sensorData.Data),
-						}
+						fmtData := formatter.FormatSensorData(sensorData.Data, device.NodeName, device.ElementDn)
+
 						saveFormattedData(fmtData, siteDisplay, devicePath, "data.json")
 					}
 					continue

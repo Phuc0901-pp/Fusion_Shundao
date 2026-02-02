@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"strconv"
+	"strings"
 	"time"
 
 	"fusion/src/api"
@@ -335,7 +336,19 @@ func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID stri
 		if stdKey, ok := SmartLoggerFieldMap[key]; ok {
 			output.Data[stdKey] = val
 		} else {
-			output.Data[key] = val
+			// Fallback: lowercase and check again or just lowercase
+			if stdKey, ok := SensorFieldMap[key]; ok {
+				output.Data[stdKey] = val
+			} else {
+				// Automatic snake_case conversion for unknown keys
+				lowerKey := strings.ToLower(key)
+				// Replace spaces and special chars
+				lowerKey = strings.ReplaceAll(lowerKey, " ", "_")
+				lowerKey = strings.ReplaceAll(lowerKey, "(°)", "")
+				lowerKey = strings.ReplaceAll(lowerKey, "(%)", "")
+				lowerKey = strings.TrimSpace(lowerKey)
+				output.Data[lowerKey] = val
+			}
 		}
 	}
 
@@ -362,6 +375,34 @@ func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID stri
 			childList = append(childList, childData)
 		}
 		output.Data["child_devices"] = childList
+	}
+
+	return output
+}
+
+// FormatSensorData converts raw sensor/EMI data to formatted map with standardized keys
+func FormatSensorData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+	output := &FusionFormattedData{
+		Timestamp:  time.Now().Unix(),
+		DeviceName: html.UnescapeString(deviceName),
+		DeviceID:   deviceID,
+		Data:       make(OrderedDataMap),
+	}
+
+	rawKV := GetKeyValues(raw)
+
+	for key, val := range rawKV {
+		if stdKey, ok := SensorFieldMap[key]; ok {
+			output.Data[stdKey] = val
+		} else {
+			// Automatic snake_case conversion
+			lowerKey := strings.ToLower(key)
+			lowerKey = strings.ReplaceAll(lowerKey, " ", "_")
+			lowerKey = strings.ReplaceAll(lowerKey, "(°)", "")
+			lowerKey = strings.ReplaceAll(lowerKey, "(%)", "")
+			lowerKey = strings.TrimSpace(lowerKey)
+			output.Data[lowerKey] = val
+		}
 	}
 
 	return output

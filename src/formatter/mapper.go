@@ -58,9 +58,11 @@ var SensorFieldMap = map[string]string{
 
 // SmartLoggerFieldMap maps display names to standardized field names for SmartLogger info
 var SmartLoggerFieldMap = map[string]string{
-	"Device model":      "device_model",
-	"Software Version":  "software_version",
-	"SN":                "serial_number",
-	"Device IP address": "ip_address",
-	"Device name":       "device_name",
+	"Device model":        "device_model",
+	"Software Version":    "software_version",
+	"SN":                  "serial_number",
+	"Device IP address":   "ip_address",
+	"Device name":         "device_name",
+	"Device Name":         "device_name",
+	"Maximum azimuth (°)": "maximum_azimuth",
 }
