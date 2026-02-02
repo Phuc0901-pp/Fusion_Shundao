@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930745,
+  "timestamp": 1769999507,
   "device_name": "HF23 Inverter 5",
   "device_id": "NE=50176261",
   "data": {
-    "active_power": 64.003,
-    "daily_yield": 421.34,
+    "active_power": 52.442,
+    "daily_yield": 77.17,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 92.575,
-    "phase_a_voltage": 231.1,
-    "phase_b_current": 92.508,
-    "phase_b_voltage": 230.6,
-    "phase_c_current": 92.564,
-    "phase_c_voltage": 231.7,
-    "power_factor": 0.998,
-    "reactive_power": 4.511,
+    "grid_frequency": 50.29,
+    "phase_a_current": 74.596,
+    "phase_a_voltage": 235.1,
+    "phase_b_current": 74.33,
+    "phase_b_voltage": 234.4,
+    "phase_c_current": 74.661,
+    "phase_c_voltage": 234.7,
+    "power_factor": 1,
+    "reactive_power": 0.973,
     "status": "Grid connected",
-    "total_yield": 587614.64
+    "total_yield": 587792.32
   }
 }

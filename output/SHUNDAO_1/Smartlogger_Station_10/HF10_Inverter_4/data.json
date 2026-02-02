@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930693,
+  "timestamp": 1769999442,
   "device_name": "HF10 Inverter 4",
   "device_id": "NE=50153166",
   "data": {
-    "active_power": 60.226,
-    "daily_yield": 427.47,
+    "active_power": 55.885,
+    "daily_yield": 95.3,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 88.531,
-    "phase_a_voltage": 228.3,
-    "phase_b_current": 88.898,
-    "phase_b_voltage": 227,
-    "phase_c_current": 88.693,
-    "phase_c_voltage": 226.8,
+    "grid_frequency": 50.29,
+    "phase_a_current": 81.371,
+    "phase_a_voltage": 229.4,
+    "phase_b_current": 81.875,
+    "phase_b_voltage": 227.7,
+    "phase_c_current": 81.535,
+    "phase_c_voltage": 228.2,
     "power_factor": 1,
-    "reactive_power": 1.324,
+    "reactive_power": -0.12,
     "status": "Grid connected",
-    "total_yield": 573904.61
+    "total_yield": 574092.73
   }
 }

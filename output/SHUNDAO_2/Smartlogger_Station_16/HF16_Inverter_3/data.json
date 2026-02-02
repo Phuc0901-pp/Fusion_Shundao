@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930723,
+  "timestamp": 1769999478,
   "device_name": "HF16 Inverter 3",
   "device_id": "NE=50127690",
   "data": {
-    "active_power": 56.726,
-    "daily_yield": 385.46,
+    "active_power": 49.324,
+    "daily_yield": 76.66,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 84.73,
-    "phase_a_voltage": 223.1,
-    "phase_b_current": 84.839,
-    "phase_b_voltage": 222.9,
-    "phase_c_current": 84.949,
-    "phase_c_voltage": 223.8,
-    "power_factor": 0.997,
-    "reactive_power": 4.513,
+    "grid_frequency": 50.29,
+    "phase_a_current": 72.245,
+    "phase_a_voltage": 228,
+    "phase_b_current": 72.126,
+    "phase_b_voltage": 227.8,
+    "phase_c_current": 72.28,
+    "phase_c_voltage": 228.3,
+    "power_factor": 1,
+    "reactive_power": 0.977,
     "status": "Grid connected",
-    "total_yield": 568989.58
+    "total_yield": 569155.95
   }
 }

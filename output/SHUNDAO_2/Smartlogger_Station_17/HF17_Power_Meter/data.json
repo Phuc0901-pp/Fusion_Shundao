@@ -1,17 +1,17 @@
 {
-  "timestamp": 1769930729,
+  "timestamp": 1769999485,
   "device_name": "HF17 Power Meter",
   "device_id": "NE=50196837",
   "data": {
-    "active_energy_export": 824.02,
-    "active_energy_import": 3689140.81,
-    "active_power": -473364,
-    "power_factor": -0.996,
-    "reactive_power": -39155,
+    "active_energy_export": 824.04,
+    "active_energy_import": 3690470.89,
+    "active_power": -431085,
+    "power_factor": -0.999,
+    "reactive_power": -17242,
     "status": "Normal",
-    "total_apparent_power": 474.981,
-    "voltage_a": 397.23,
-    "voltage_b": 398.81,
-    "voltage_c": 229.13
+    "total_apparent_power": 431.43,
+    "voltage_a": 403.28,
+    "voltage_b": 402.83,
+    "voltage_c": 232.69
   }
 }

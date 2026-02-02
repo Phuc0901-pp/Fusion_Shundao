@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930730,
+  "timestamp": 1769999486,
   "device_name": "HF18 Inverter 3",
   "device_id": "NE=50196856",
   "data": {
-    "active_power": 62.676,
-    "daily_yield": 443.03,
+    "active_power": 58.193,
+    "daily_yield": 85.94,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 90.475,
-    "phase_a_voltage": 231.7,
-    "phase_b_current": 90.365,
-    "phase_b_voltage": 229.5,
-    "phase_c_current": 91.014,
-    "phase_c_voltage": 232.4,
-    "power_factor": 0.997,
-    "reactive_power": 4.498,
+    "grid_frequency": 50.29,
+    "phase_a_current": 82.508,
+    "phase_a_voltage": 235.5,
+    "phase_b_current": 82.389,
+    "phase_b_voltage": 233.2,
+    "phase_c_current": 82.849,
+    "phase_c_voltage": 236,
+    "power_factor": 1,
+    "reactive_power": 0.967,
     "status": "Grid connected",
-    "total_yield": 468976.95
+    "total_yield": 469154.99
   }
 }

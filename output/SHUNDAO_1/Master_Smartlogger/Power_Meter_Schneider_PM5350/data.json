@@ -1,17 +1,17 @@
 {
-  "timestamp": 1769930664,
+  "timestamp": 1769999404,
   "device_name": "Power Meter Schneider PM5350",
   "device_id": "NE=50143100",
   "data": {
     "active_energy_export": 1110.06,
-    "active_energy_import": 102518696.09,
-    "active_power": -5401079,
-    "power_factor": -0.855,
-    "reactive_power": -3275502,
+    "active_energy_import": 102684708.13,
+    "active_power": -4937332,
+    "power_factor": -0.861,
+    "reactive_power": -2910945,
     "status": "Normal",
-    "total_apparent_power": 6316.689,
-    "voltage_a": 22455.86,
-    "voltage_b": 22488.61,
-    "voltage_c": 12883.04
+    "total_apparent_power": 5731.565,
+    "voltage_a": 22560.79,
+    "voltage_b": 22551.59,
+    "voltage_c": 12996.67
   }
 }

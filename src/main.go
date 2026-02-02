@@ -103,9 +103,21 @@ func main() {
 			// --- Fetch SmartLogger Self-Info ---
 			fmt.Printf("     [Info] Fetching SmartLogger info: %s\n", sl.NodeName)
 			slInfoData, err := fetcher.FetchSmartLoggerDetail(ctx, sl.ElementDn)
+
+			// --- Fetch SmartLogger Children (Secondary Devices) ---
+			var slChildren []api.ChildDevice
+			fmt.Printf("     [Info] Fetching SmartLogger Children: %s\n", sl.NodeName)
+			children, errChild := fetcher.FetchSmartLoggerChildren(ctx, sl.ElementDn)
+			if errChild == nil {
+				slChildren = children
+				fmt.Printf("        ✓ Found %d child devices\n", len(children))
+			} else {
+				fmt.Printf("        ⚠️ Error fetching child devices: %v\n", errChild)
+			}
+
 			if err == nil && slInfoData != nil {
 				// Format SmartLogger Data
-				fmtSlData := formatter.FormatSmartLoggerData(slInfoData, sl.NodeName, sl.ElementDn)
+				fmtSlData := formatter.FormatSmartLoggerData(slInfoData, sl.NodeName, sl.ElementDn, slChildren)
 				saveFormattedData(fmtSlData, siteDisplay, slFolder, "smartLogger_data.json")
 			} else {
 				fmt.Printf("        ⚠️ Lỗi lấy thông tin SmartLogger: %v\n", err)

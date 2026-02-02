@@ -1,17 +1,17 @@
 {
-  "timestamp": 1769930667,
+  "timestamp": 1769999409,
   "device_name": "HF1 Power Meter",
   "device_id": "NE=50184269",
   "data": {
-    "active_energy_export": 3115.67,
-    "active_energy_import": 4665781.59,
-    "active_power": -471560,
+    "active_energy_export": 3119.28,
+    "active_energy_import": 4667178.63,
+    "active_power": -436841,
     "power_factor": -0.992,
-    "reactive_power": -59542,
+    "reactive_power": -54851,
     "status": "Normal",
-    "total_apparent_power": 475.305,
-    "voltage_a": 408.51,
-    "voltage_b": 408.01,
-    "voltage_c": 234.63
+    "total_apparent_power": 440.271,
+    "voltage_a": 408.83,
+    "voltage_b": 410.7,
+    "voltage_c": 234.7
   }
 }

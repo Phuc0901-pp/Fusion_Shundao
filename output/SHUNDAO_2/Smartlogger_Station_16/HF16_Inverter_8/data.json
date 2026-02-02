@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930724,
+  "timestamp": 1769999479,
   "device_name": "HF16 Inverter 8",
   "device_id": "NE=50176236",
   "data": {
-    "active_power": 56.229,
-    "daily_yield": 388.63,
+    "active_power": 48.586,
+    "daily_yield": 75.89,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 83.151,
-    "phase_a_voltage": 226.3,
-    "phase_b_current": 82.995,
-    "phase_b_voltage": 225.8,
-    "phase_c_current": 83.14,
-    "phase_c_voltage": 226.3,
-    "power_factor": 0.997,
-    "reactive_power": 4.503,
+    "grid_frequency": 50.3,
+    "phase_a_current": 70.478,
+    "phase_a_voltage": 230.5,
+    "phase_b_current": 70.375,
+    "phase_b_voltage": 229.8,
+    "phase_c_current": 70.605,
+    "phase_c_voltage": 230.3,
+    "power_factor": 1,
+    "reactive_power": 0.981,
     "status": "Grid connected",
-    "total_yield": 568432.27
+    "total_yield": 568594.81
   }
 }

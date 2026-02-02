@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930716,
+  "timestamp": 1769999470,
   "device_name": "HF14 Inverter 5",
   "device_id": "NE=50127726",
   "data": {
-    "active_power": 56.56,
-    "daily_yield": 387.81,
+    "active_power": 49.626,
+    "daily_yield": 77.47,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 81.524,
-    "phase_a_voltage": 231.1,
-    "phase_b_current": 82.264,
-    "phase_b_voltage": 232.1,
-    "phase_c_current": 82.016,
-    "phase_c_voltage": 231.8,
-    "power_factor": 0.997,
-    "reactive_power": 4.469,
+    "grid_frequency": 50.29,
+    "phase_a_current": 70.389,
+    "phase_a_voltage": 235.2,
+    "phase_b_current": 70.988,
+    "phase_b_voltage": 234.9,
+    "phase_c_current": 70.825,
+    "phase_c_voltage": 235.7,
+    "power_factor": 1,
+    "reactive_power": 0.973,
     "status": "Grid connected",
-    "total_yield": 576198.7
+    "total_yield": 576366.72
   }
 }

@@ -1,17 +1,17 @@
 {
-  "timestamp": 1769930695,
+  "timestamp": 1769999445,
   "device_name": "HF10 Power Meter-Cap",
   "device_id": "NE=50184306",
   "data": {
-    "active_energy_export": 8227.19,
-    "active_energy_import": 4896620.24,
-    "active_power": -518672,
-    "power_factor": -0.995,
-    "reactive_power": -47898,
+    "active_energy_export": 8228.75,
+    "active_energy_import": 4898160.35,
+    "active_power": -456527,
+    "power_factor": -0.997,
+    "reactive_power": -34014,
     "status": "Normal",
-    "total_apparent_power": 520.879,
-    "voltage_a": 392.96,
-    "voltage_b": 391.21,
-    "voltage_c": 226.09
+    "total_apparent_power": 457.793,
+    "voltage_a": 392.51,
+    "voltage_b": 393.85,
+    "voltage_c": 227.98
   }
 }

@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930697,
+  "timestamp": 1769999447,
   "device_name": "HF11 Inverter 5",
   "device_id": "NE=50156852",
   "data": {
-    "active_power": 53.281,
-    "daily_yield": 400.42,
+    "active_power": 52.246,
+    "daily_yield": 87.47,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 75.63,
-    "phase_a_voltage": 235.7,
-    "phase_b_current": 75.615,
-    "phase_b_voltage": 236.7,
-    "phase_c_current": 75.701,
-    "phase_c_voltage": 235.4,
+    "grid_frequency": 50.29,
+    "phase_a_current": 73.963,
+    "phase_a_voltage": 236.7,
+    "phase_b_current": 73.822,
+    "phase_b_voltage": 236.8,
+    "phase_c_current": 74.138,
+    "phase_c_voltage": 235.5,
     "power_factor": 1,
-    "reactive_power": 1.31,
+    "reactive_power": -0.127,
     "status": "Grid connected",
-    "total_yield": 579095.26
+    "total_yield": 579261.63
   }
 }

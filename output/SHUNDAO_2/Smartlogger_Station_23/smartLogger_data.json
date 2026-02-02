@@ -1,10 +1,100 @@
 {
-  "timestamp": 1769930744,
+  "timestamp": 1769999505,
   "device_name": "Smartlogger Station 23",
   "device_id": "NE=50127629",
   "data": {
     "Device Name": "Smartlogger Station 23",
     "Maximum azimuth (°)": 30,
+    "child_devices": [
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 1",
+        "serial_number": "ES2140030662",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-60KTL-M0",
+        "name": "HF23 Inverter 10",
+        "serial_number": "6T2189023071",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V300R001C00SPC133"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 2",
+        "serial_number": "ES2140030567",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 3",
+        "serial_number": "ES2140030577",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 4",
+        "serial_number": "6T2149026270",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 5",
+        "serial_number": "6T2149026458",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 6",
+        "serial_number": "6T2149029544",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 7",
+        "serial_number": "6T2149026427",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 8",
+        "serial_number": "6T2149029519",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF23 Inverter 9",
+        "serial_number": "6T2149026430",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "PowerMeter",
+        "name": "HF23 Power Meter",
+        "serial_number": "AM001020C0118272",
+        "status": "Connected",
+        "type": "Power Sensor",
+        "version": "V100R001C01AM001"
+      }
+    ],
     "device_model": "Smart Logger",
     "ip_address": "103.199.69.239",
     "serial_number": "1020C0118272",

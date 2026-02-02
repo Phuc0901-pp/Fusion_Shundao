@@ -1,12 +1,12 @@
 {
-  "timestamp": 1769930678,
+  "timestamp": 1769999424,
   "device_name": "EMI-EM001020C0118264",
   "device_id": "NE=62974784",
   "data": {
-    "Ambient temperature": 41,
-    "Daily irradiation": 17.362,
-    "Daily irradiation(Energy)": 4.823,
-    "Irradiance": 689,
+    "Ambient temperature": 34,
+    "Daily irradiation": 3.549,
+    "Daily irradiation(Energy)": 0.986,
+    "Irradiance": 612,
     "PV Temperature": "N/A",
     "Status": "Online",
     "Wind direction": "N/A",

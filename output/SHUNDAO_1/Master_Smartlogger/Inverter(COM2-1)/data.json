@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930663,
+  "timestamp": 1769999404,
   "device_name": "Inverter(COM2-1)",
   "device_id": "NE=51997662",
   "data": {
-    "active_power": 32.661,
-    "daily_yield": 229.95,
+    "active_power": 29.421,
+    "daily_yield": 46.03,
     "efficiency": 60,
-    "grid_frequency": 50.14,
-    "phase_a_current": 46.287,
-    "phase_a_voltage": 236.3,
-    "phase_b_current": 46.327,
-    "phase_b_voltage": 237.9,
-    "phase_c_current": 46.239,
-    "phase_c_voltage": 240,
-    "power_factor": 0.999,
-    "reactive_power": -0.015,
+    "grid_frequency": 50.3,
+    "phase_a_current": 41.454,
+    "phase_a_voltage": 237.2,
+    "phase_b_current": 41.438,
+    "phase_b_voltage": 237.6,
+    "phase_c_current": 41.4,
+    "phase_c_voltage": 240.9,
+    "power_factor": 1,
+    "reactive_power": -0.02,
     "status": "Grid connected",
-    "total_yield": 322587.16
+    "total_yield": 322682.65
   }
 }

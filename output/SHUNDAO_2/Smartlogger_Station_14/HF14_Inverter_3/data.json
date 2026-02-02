@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930716,
+  "timestamp": 1769999469,
   "device_name": "HF14 Inverter 3",
   "device_id": "NE=50127724",
   "data": {
-    "active_power": 57.597,
-    "daily_yield": 394,
+    "active_power": 49.836,
+    "daily_yield": 78.4,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 83.367,
-    "phase_a_voltage": 231.3,
-    "phase_b_current": 83.655,
-    "phase_b_voltage": 231.3,
-    "phase_c_current": 83.557,
-    "phase_c_voltage": 232.2,
-    "power_factor": 0.997,
-    "reactive_power": 4.463,
+    "grid_frequency": 50.28,
+    "phase_a_current": 70.934,
+    "phase_a_voltage": 234.9,
+    "phase_b_current": 70.939,
+    "phase_b_voltage": 234.3,
+    "phase_c_current": 71.145,
+    "phase_c_voltage": 235.4,
+    "power_factor": 1,
+    "reactive_power": 0.943,
     "status": "Grid connected",
-    "total_yield": 577383.09
+    "total_yield": 577554.4
   }
 }

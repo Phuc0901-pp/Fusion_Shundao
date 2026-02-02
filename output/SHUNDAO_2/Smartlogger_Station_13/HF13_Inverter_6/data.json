@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930713,
+  "timestamp": 1769999466,
   "device_name": "HF13 Inverter 6",
   "device_id": "NE=50127733",
   "data": {
-    "active_power": 55.738,
-    "daily_yield": 384.94,
+    "active_power": 48.691,
+    "daily_yield": 76.95,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 80.553,
-    "phase_a_voltage": 228.2,
-    "phase_b_current": 80.916,
-    "phase_b_voltage": 232.4,
-    "phase_c_current": 80.8,
-    "phase_c_voltage": 231.4,
-    "power_factor": 0.997,
-    "reactive_power": 4.45,
+    "grid_frequency": 50.3,
+    "phase_a_current": 69.234,
+    "phase_a_voltage": 232.1,
+    "phase_b_current": 69.455,
+    "phase_b_voltage": 235.8,
+    "phase_c_current": 69.521,
+    "phase_c_voltage": 234.7,
+    "power_factor": 1,
+    "reactive_power": 0.962,
     "status": "Grid connected",
-    "total_yield": 569539.89
+    "total_yield": 569707.22
   }
 }

@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930737,
+  "timestamp": 1769999495,
   "device_name": "HF20 Inverter 1",
   "device_id": "NE=50127667",
   "data": {
-    "active_power": 52.872,
-    "daily_yield": 391.23,
+    "active_power": 53.392,
+    "daily_yield": 78,
     "efficiency": 100,
-    "grid_frequency": 50.12,
-    "phase_a_current": 75.536,
-    "phase_a_voltage": 234.3,
-    "phase_b_current": 75.2,
-    "phase_b_voltage": 234,
-    "phase_c_current": 75.356,
-    "phase_c_voltage": 234.7,
-    "power_factor": 0.996,
-    "reactive_power": 4.464,
+    "grid_frequency": 50.3,
+    "phase_a_current": 75.094,
+    "phase_a_voltage": 238.1,
+    "phase_b_current": 74.634,
+    "phase_b_voltage": 238.5,
+    "phase_c_current": 74.912,
+    "phase_c_voltage": 238.6,
+    "power_factor": 1,
+    "reactive_power": 0.985,
     "status": "Grid connected",
-    "total_yield": 420386.11
+    "total_yield": 420540.07
   }
 }

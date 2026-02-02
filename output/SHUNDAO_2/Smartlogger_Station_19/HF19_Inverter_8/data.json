@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930736,
+  "timestamp": 1769999493,
   "device_name": "HF19 Inverter 8",
   "device_id": "NE=50127656",
   "data": {
-    "active_power": 52.206,
-    "daily_yield": 395.9,
+    "active_power": 52.76,
+    "daily_yield": 87.64,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 77.95,
-    "phase_a_voltage": 222.9,
-    "phase_b_current": 78.406,
-    "phase_b_voltage": 221.8,
-    "phase_c_current": 78.291,
-    "phase_c_voltage": 223.4,
-    "power_factor": 0.996,
-    "reactive_power": 4.499,
+    "grid_frequency": 50.3,
+    "phase_a_current": 76.812,
+    "phase_a_voltage": 228.7,
+    "phase_b_current": 77.002,
+    "phase_b_voltage": 228.5,
+    "phase_c_current": 77.08,
+    "phase_c_voltage": 229.6,
+    "power_factor": 1,
+    "reactive_power": 0.978,
     "status": "Grid connected",
-    "total_yield": 576049.68
+    "total_yield": 576215.32
   }
 }

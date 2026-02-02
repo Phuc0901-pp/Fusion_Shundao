@@ -1,10 +1,100 @@
 {
-  "timestamp": 1769930671,
+  "timestamp": 1769999415,
   "device_name": "Smartlogger Station 4",
   "device_id": "NE=50163743",
   "data": {
     "Device Name": "Smartlogger Station 4",
     "Maximum azimuth (°)": 30,
+    "child_devices": [
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 1",
+        "serial_number": "6T2149026407",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-40KTL-M3",
+        "name": "HF4 Inverter 10",
+        "serial_number": "6T21A9006618",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V100R001C20SPC147"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 2",
+        "serial_number": "6T2149029470",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 3",
+        "serial_number": "6T2149029490",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 4",
+        "serial_number": "6T2149029468",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 5",
+        "serial_number": "6T2149026417",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 6",
+        "serial_number": "6T2149029480",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 7",
+        "serial_number": "6T2149026390",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 8",
+        "serial_number": "6T2149029533",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "SUN2000-100KTL-M1",
+        "name": "HF4 Inverter 9",
+        "serial_number": "6T2149026419",
+        "status": "Connected",
+        "type": "Inverter",
+        "version": "V500R023C00SPC156"
+      },
+      {
+        "model": "PowerMeter",
+        "name": "HF4 Power Meter-Cap",
+        "serial_number": "AM001020C0118305",
+        "status": "Connected",
+        "type": "Power Sensor",
+        "version": "V100R001C01AM001"
+      }
+    ],
     "device_model": "Smart Logger",
     "ip_address": "103.199.37.40",
     "serial_number": "1020C0118305",

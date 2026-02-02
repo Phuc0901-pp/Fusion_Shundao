@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930666,
+  "timestamp": 1769999408,
   "device_name": "HF1 Inverter 7",
   "device_id": "NE=50162837",
   "data": {
-    "active_power": 58.482,
-    "daily_yield": 427.81,
+    "active_power": 57.275,
+    "daily_yield": 90.2,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 83.217,
-    "phase_a_voltage": 236.9,
-    "phase_b_current": 83.337,
-    "phase_b_voltage": 236,
-    "phase_c_current": 83.045,
-    "phase_c_voltage": 235.3,
+    "grid_frequency": 50.29,
+    "phase_a_current": 81.344,
+    "phase_a_voltage": 236.8,
+    "phase_b_current": 81.342,
+    "phase_b_voltage": 236.4,
+    "phase_c_current": 81.164,
+    "phase_c_voltage": 235.7,
     "power_factor": 1,
-    "reactive_power": 1.253,
+    "reactive_power": -0.149,
     "status": "Grid connected",
-    "total_yield": 577761.56
+    "total_yield": 577943
   }
 }

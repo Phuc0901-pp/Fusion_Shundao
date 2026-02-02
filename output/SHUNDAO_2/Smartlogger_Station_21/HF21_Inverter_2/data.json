@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930741,
+  "timestamp": 1769999500,
   "device_name": "HF21 Inverter 2",
   "device_id": "NE=50127644",
   "data": {
-    "active_power": 54.607,
-    "daily_yield": 408.84,
+    "active_power": 54.817,
+    "daily_yield": 91.78,
     "efficiency": 100,
-    "grid_frequency": 50.14,
-    "phase_a_current": 81.972,
-    "phase_a_voltage": 222.1,
-    "phase_b_current": 81.95,
-    "phase_b_voltage": 222,
-    "phase_c_current": 82.054,
-    "phase_c_voltage": 223.4,
-    "power_factor": 0.997,
-    "reactive_power": 4.529,
+    "grid_frequency": 50.3,
+    "phase_a_current": 80.608,
+    "phase_a_voltage": 226.4,
+    "phase_b_current": 80.674,
+    "phase_b_voltage": 226.2,
+    "phase_c_current": 81.084,
+    "phase_c_voltage": 227.6,
+    "power_factor": 1,
+    "reactive_power": 0.955,
     "status": "Grid connected",
-    "total_yield": 580510.15
+    "total_yield": 580682.99
   }
 }

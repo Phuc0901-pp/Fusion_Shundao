@@ -1,14 +1,14 @@
 {
-  "timestamp": 1769930702,
+  "timestamp": 1769999453,
   "sitename": "SHUNDAO 2",
   "siteid": "NE=50127734",
   "data": {
-    "co2_reduction": 27756336.23,
-    "cumulative_energy": 58434392.07,
-    "daily_energy": 42600.72,
-    "daily_income": 62200759.6,
-    "equivalent_trees": 37919,
+    "co2_reduction": 27764806.58,
+    "cumulative_energy": 58452224.38,
+    "daily_energy": 8728.01,
+    "daily_income": 12742339.8,
+    "equivalent_trees": 37931,
     "inverter_power": 10850,
-    "standard_coal_savings": 23373756.83
+    "standard_coal_savings": 23380889.75
   }
 }

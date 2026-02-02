@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 func FormatInverterData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
 	output := &FusionFormattedData{
 		Timestamp:  time.Now().Unix(),
-		DeviceName: deviceName,
+		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
 		Data:       make(map[string]interface{}),
 	}
@@ -37,7 +38,7 @@ func FormatInverterData(raw map[string]interface{}, deviceName, deviceID string)
 func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
 	output := &FusionFormattedData{
 		Timestamp:  time.Now().Unix(),
-		DeviceName: deviceName,
+		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
 		Data:       make(map[string]interface{}),
 	}
@@ -90,7 +91,7 @@ func FormatStringData(raw map[string]interface{}, deviceName, deviceID string) *
 func FormatPowerMeterData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
 	output := &FusionFormattedData{
 		Timestamp:  time.Now().Unix(),
-		DeviceName: deviceName,
+		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
 		Data:       make(map[string]interface{}),
 	}
@@ -287,10 +288,10 @@ func getSignalValue(signals map[string]interface{}, id string) (interface{}, boo
 }
 
 // FormatSmartLoggerData converts raw data (list of parameters) to formatted map
-func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID string) *FusionFormattedData {
+func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID string, children []api.ChildDevice) *FusionFormattedData {
 	output := &FusionFormattedData{
 		Timestamp:  time.Now().Unix(),
-		DeviceName: deviceName,
+		DeviceName: html.UnescapeString(deviceName),
 		DeviceID:   deviceID,
 		Data:       make(map[string]interface{}),
 	}
@@ -310,5 +311,39 @@ func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID stri
 		}
 	}
 
+	// Process child devices
+	if len(children) > 0 {
+		var childList []map[string]interface{}
+		for _, child := range children {
+			// Extract details based on user provided keys
+			sn := getStringVal(child.ParamValues, "50012")
+			version := getStringVal(child.ParamValues, "50010")
+			model := getStringVal(child.ParamValues, "50009") // Inverter logic often uses 2000X but user said 50009
+
+			// If 50009 is empty, try others just in case or keep as is?
+			// User explicitly said "5009: model", JSON shows "50009": "SUN2000..." or "EMI"
+
+			childData := map[string]interface{}{
+				"name":          html.UnescapeString(child.Name),
+				"status":        child.Status,
+				"type":          child.MocTypeName,
+				"model":         model,
+				"version":       version,
+				"serial_number": sn,
+			}
+			childList = append(childList, childData)
+		}
+		output.Data["child_devices"] = childList
+	}
+
 	return output
+}
+
+func getStringVal(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }

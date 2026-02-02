@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930708,
+  "timestamp": 1769999460,
   "device_name": "HF12 Inverter 2",
   "device_id": "NE=50153132",
   "data": {
-    "active_power": 57,
-    "daily_yield": 386.68,
+    "active_power": 48.265,
+    "daily_yield": 75.03,
     "efficiency": 100,
-    "grid_frequency": 50.15,
-    "phase_a_current": 84.981,
-    "phase_a_voltage": 223.6,
-    "phase_b_current": 85.354,
-    "phase_b_voltage": 223.9,
-    "phase_c_current": 85.262,
-    "phase_c_voltage": 224.2,
-    "power_factor": 0.997,
-    "reactive_power": 4.502,
+    "grid_frequency": 50.3,
+    "phase_a_current": 70.407,
+    "phase_a_voltage": 228.5,
+    "phase_b_current": 70.617,
+    "phase_b_voltage": 228.1,
+    "phase_c_current": 70.675,
+    "phase_c_voltage": 228.4,
+    "power_factor": 1,
+    "reactive_power": 0.968,
     "status": "Grid connected",
-    "total_yield": 558943.68
+    "total_yield": 559109.96
   }
 }

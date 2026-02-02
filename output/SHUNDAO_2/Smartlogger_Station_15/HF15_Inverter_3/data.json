@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930719,
+  "timestamp": 1769999473,
   "device_name": "HF15 Inverter 3",
   "device_id": "NE=50127686",
   "data": {
-    "active_power": 57.488,
-    "daily_yield": 390.63,
+    "active_power": 50.103,
+    "daily_yield": 75.87,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 83.242,
-    "phase_a_voltage": 230.5,
-    "phase_b_current": 83.262,
-    "phase_b_voltage": 231.1,
-    "phase_c_current": 82.949,
-    "phase_c_voltage": 231.1,
-    "power_factor": 0.997,
-    "reactive_power": 4.477,
+    "grid_frequency": 50.3,
+    "phase_a_current": 71.207,
+    "phase_a_voltage": 234,
+    "phase_b_current": 71.151,
+    "phase_b_voltage": 233.8,
+    "phase_c_current": 71.083,
+    "phase_c_voltage": 235.6,
+    "power_factor": 1,
+    "reactive_power": 0.977,
     "status": "Grid connected",
-    "total_yield": 572284.31
+    "total_yield": 572451.39
   }
 }

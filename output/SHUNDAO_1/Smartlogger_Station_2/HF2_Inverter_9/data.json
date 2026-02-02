@@ -1,21 +1,21 @@
 {
-  "timestamp": 1769930670,
+  "timestamp": 1769999413,
   "device_name": "HF2 Inverter 9",
   "device_id": "NE=50155132",
   "data": {
-    "active_power": 59.579,
-    "daily_yield": 406.91,
+    "active_power": 51.903,
+    "daily_yield": 80.88,
     "efficiency": 100,
-    "grid_frequency": 50.13,
-    "phase_a_current": 85.639,
+    "grid_frequency": 50.3,
+    "phase_a_current": 74.14,
     "phase_a_voltage": 233.3,
-    "phase_b_current": 85.791,
-    "phase_b_voltage": 230.5,
-    "phase_c_current": 85.704,
-    "phase_c_voltage": 233.4,
+    "phase_b_current": 74.301,
+    "phase_b_voltage": 231.8,
+    "phase_c_current": 74.266,
+    "phase_c_voltage": 234.7,
     "power_factor": 1,
-    "reactive_power": 1.324,
+    "reactive_power": -0.14,
     "status": "Grid connected",
-    "total_yield": 554375.95
+    "total_yield": 554553.41
   }
 }

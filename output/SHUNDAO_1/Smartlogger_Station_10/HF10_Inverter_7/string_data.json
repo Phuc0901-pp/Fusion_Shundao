@@ -1,5 +1,5 @@
 {
-  "timestamp": 1769930694,
+  "timestamp": 1769999443,
   "device_name": "HF10 Inverter 7",
   "device_id": "NE=50153164",
   "data": {
@@ -44,17 +44,17 @@
     "pv2_current": 0,
     "pv2_voltage": 0,
     "pv3_current": 0,
-    "pv3_voltage": 712.5,
-    "pv4_current": 9.55,
-    "pv4_voltage": 712.5,
+    "pv3_voltage": 732.9,
+    "pv4_current": 8.73,
+    "pv4_voltage": 732.9,
     "pv5_current": 0,
     "pv5_voltage": 0,
     "pv6_current": 0,
     "pv6_voltage": 0,
     "pv7_current": 0,
-    "pv7_voltage": 718,
-    "pv8_current": 8.73,
-    "pv8_voltage": 718,
+    "pv7_voltage": 746,
+    "pv8_current": 7.13,
+    "pv8_voltage": 746,
     "pv9_current": 0,
     "pv9_voltage": 0
   }

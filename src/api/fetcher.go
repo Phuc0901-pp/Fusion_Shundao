@@ -1022,3 +1022,78 @@ func (f *Fetcher) FetchDeviceDetail(ctx context.Context, deviceDn string) (map[s
 	// /device-realtime-data which returns parameters like IP, SN for SmartLoggers
 	return f.FetchInverterRealtimeData(ctx, deviceDn)
 }
+
+// ChildDevice represents a secondary device connected to SmartLogger
+type ChildDevice struct {
+	Dn          string                 `json:"dn"`
+	Name        string                 `json:"name"`
+	ParentName  string                 `json:"parentName"`
+	MocTypeName string                 `json:"mocTypeName"`
+	Status      string                 `json:"status"`
+	ParamValues map[string]interface{} `json:"paramValues"`
+}
+
+// FetchSmartLoggerChildren fetches secondary devices for a SmartLogger
+func (f *Fetcher) FetchSmartLoggerChildren(ctx context.Context, parentDn string) ([]ChildDevice, error) {
+	f.mu.Lock()
+	token := f.roarand
+	f.mu.Unlock()
+
+	if token == "" {
+		return nil, fmt.Errorf("no Roarand token available")
+	}
+
+	// GET API to /children-list
+	// mocTypes provided by user: 20822,20810,20825,20826,20823,20824,20816,20838,20836,20835,20844,20847,20865
+	mocTypes := "20822,20810,20825,20826,20823,20824,20816,20838,20836,20835,20844,20847,20865"
+
+	js := fmt.Sprintf(`
+		(function() {
+			var xhr = new XMLHttpRequest();
+			var now = Date.now();
+			var url = 'https://intl.fusionsolar.huawei.com/rest/neteco/web/config/device/v1/children-list';
+			url += '?conditionParams.curPage=0';
+			url += '&conditionParams.recordperpage=500';
+			url += '&conditionParams.parentDn=%s';
+			url += '&conditionParams.monitoringRelation=true';
+			url += '&conditionParams.mocTypes=%s';
+			url += '&_=' + now;
+			
+			xhr.open('GET', url, false);
+			xhr.setRequestHeader('Accept', 'application/json');
+			xhr.setRequestHeader('X-Timezone-Offset', '420');
+			xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+			xhr.setRequestHeader('Roarand', '%s');
+			
+			xhr.send();
+			return xhr.responseText;
+		})()
+	`, strings.ReplaceAll(parentDn, "=", "%3D"), mocTypes, token)
+
+	var result string
+	err := chromedp.Run(ctx, chromedp.Evaluate(js, &result))
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if result is empty or invalid
+	if len(result) == 0 {
+		return nil, fmt.Errorf("empty response from browser")
+	}
+
+	if !strings.HasPrefix(result, "{") {
+		// Log a warning relative to file content length or similar if needed, but here just error
+		return nil, fmt.Errorf("invalid response")
+	}
+
+	// Parse response
+	var response struct {
+		Data []ChildDevice `json:"data"`
+	}
+
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return response.Data, nil
+}

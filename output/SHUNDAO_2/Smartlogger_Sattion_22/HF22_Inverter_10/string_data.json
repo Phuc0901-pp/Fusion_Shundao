@@ -1,5 +1,5 @@
 {
-  "timestamp": 1769930707,
+  "timestamp": 1769999458,
   "device_name": "HF22 Inverter 10",
   "device_id": "NE=50166020",
   "data": {
@@ -24,7 +24,7 @@
     "pv19_current": 0,
     "pv19_voltage": 0,
     "pv1_current": 0,
-    "pv1_voltage": 717.4,
+    "pv1_voltage": 752.2,
     "pv20_current": 0,
     "pv20_voltage": 0,
     "pv21_current": 0,
@@ -45,8 +45,8 @@
     "pv28_voltage": 0,
     "pv29_current": 0,
     "pv29_voltage": 0,
-    "pv2_current": 9.06,
-    "pv2_voltage": 717.4,
+    "pv2_current": 7.71,
+    "pv2_voltage": 752.2,
     "pv30_current": 0,
     "pv30_voltage": 0,
     "pv31_current": 0,
