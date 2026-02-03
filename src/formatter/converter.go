@@ -464,40 +464,42 @@ func FormatUnifiedInverterData(
 	strSignals := extractSignals(strRaw)
 	if strSignals != nil {
 		for i := 1; i <= 24; i++ { // Support up to 24 strings
-			var volID, curID string
-			if i <= 24 {
-				// 1-24: 11001 + (i-1)*3 -> 11001, 11004...
+			// Check if Status exists (ID 14000 + i)
+			statusID := fmt.Sprintf("%d", 14000+i)
+			_, statusOk := getSignalValue(strSignals, statusID)
+
+			// Filter: Only process if Status exists
+			if statusOk {
+				var volID, curID string
+				// Calculate IDs: 11001/11002 for string 1, etc.
+				// Pattern: 11001 + (i-1)*3
 				volID = fmt.Sprintf("%d", 11001+(i-1)*3)
 				curID = fmt.Sprintf("%d", 11002+(i-1)*3)
-			}
 
-			volVal, volOk := getSignalValue(strSignals, volID)
-			curVal, curOk := getSignalValue(strSignals, curID)
+				volVal, volOk := getSignalValue(strSignals, volID)
+				curVal, curOk := getSignalValue(strSignals, curID)
 
-			if volOk {
-				setField(GetUnifiedPVField(i, "volt_v"), volVal)
-			} else {
-				setField(GetUnifiedPVField(i, "volt_v"), 0)
-			}
+				// Status exists, so we keep this string.
+				// If value missing, default to 0.
+				if volOk {
+					setField(GetUnifiedPVField(i, "volt_v"), volVal)
+				} else {
+					setField(GetUnifiedPVField(i, "volt_v"), 0)
+				}
 
-			if curOk {
-				setField(GetUnifiedPVField(i, "amp_a"), curVal)
-			} else {
-				setField(GetUnifiedPVField(i, "amp_a"), 0)
-			}
+				if curOk {
+					setField(GetUnifiedPVField(i, "amp_a"), curVal)
+				} else {
+					setField(GetUnifiedPVField(i, "amp_a"), 0)
+				}
 
-			// Add to DC power calculation (V * A / 1000 for kW)
-			if v, ok := volVal.(float64); ok {
-				if a, ok := curVal.(float64); ok {
-					dcPower += (v * a) / 1000.0
+				// Add to DC power calculation (V * A / 1000 for kW)
+				if v, ok := toFloat(volVal); ok {
+					if a, ok := toFloat(curVal); ok {
+						dcPower += (v * a) / 1000.0
+					}
 				}
 			}
-		}
-	} else {
-		// Fill zeros if no string data
-		for i := 1; i <= 24; i++ {
-			setField(GetUnifiedPVField(i, "volt_v"), 0)
-			setField(GetUnifiedPVField(i, "amp_a"), 0)
 		}
 	}
 
@@ -524,6 +526,8 @@ func FormatUnifiedInverterData(
 			"10029": "etotal_kwh",
 			"10032": "edaily_kwh",
 			"10006": "rated_power_kw",
+			"10027": "startup_time",
+			"10028": "shutdown_time",
 		}
 
 		for id, key := range signalMap {
@@ -540,7 +544,7 @@ func FormatUnifiedInverterData(
 
 	// 3. Other fields
 	// Fill defaults if missing
-	defaults := []string{"p_peak_today_kw", "startup_time", "shutdown_time"}
+	defaults := []string{"p_peak_today_kw"}
 	for _, k := range defaults {
 		if _, ok := output.Fields[k]; !ok {
 			setField(k, 0)
