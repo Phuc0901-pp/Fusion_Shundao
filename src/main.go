@@ -135,34 +135,95 @@ func main() {
 				if device.TypeId == 23022 || strings.Contains(strings.ToLower(device.NodeName), "inverter") {
 					fmt.Printf("        * Inverter: %s\n", deviceName)
 
-					// a. Running Data
-					rtData, err := fetcher.FetchInverterRealtimeData(ctx, device.ElementDn)
-					if err == nil && rtData != nil {
-						fmtData := formatter.FormatInverterData(rtData, device.NodeName, device.ElementDn)
-						saveFormattedData(fmtData, siteDisplay, devicePath, "data.json")
-					} else {
-						// fmt.Printf("           -> Lỗi lấy Data: %v\n", err)
+					// Prepare data containers
+					var rtData map[string]interface{}
+					var strData map[string]interface{}
+					var model, sn string
+
+					// a. Look up Static Info (Model, SN) from slChildren
+					for _, child := range slChildren {
+						if child.Dn == device.ElementDn {
+							// Found matching child
+							// Extract model and SN from ParamValues
+							// Use existing logic from FormatSmartLoggerData or helper
+							// Param IDs: 50009 (Model), 50012 (SN)
+							if v, ok := child.ParamValues["50009"].(string); ok {
+								model = v
+							}
+							if v, ok := child.ParamValues["50012"].(string); ok {
+								sn = v
+							}
+							break
+						}
 					}
 
-					// b. String Data
-					strData, err := fetcher.FetchInverterStringData(ctx, device.ElementDn)
-					if err == nil && strData != nil {
-						fmtData := formatter.FormatStringData(strData, device.NodeName, device.ElementDn)
-						saveFormattedData(fmtData, siteDisplay, devicePath, "string_data.json")
+					// b. Fetch Running Data
+					rt, errRt := fetcher.FetchInverterRealtimeData(ctx, device.ElementDn)
+					if errRt == nil && rt != nil {
+						rtData = rt
 					} else {
-						// fmt.Printf("           -> Lỗi lấy String: %v\n", err)
+						// log error?
+					}
+
+					// c. Fetch String Data
+					sd, errSd := fetcher.FetchInverterStringData(ctx, device.ElementDn)
+					if errSd == nil && sd != nil {
+						strData = sd
+					}
+
+					// d. Merge and Format
+					if rtData != nil { // Require at least IO data? Or can proceed with partial?
+						staticInfo := map[string]string{
+							"model": model,
+							"sn":    sn,
+						}
+						siteInfo := map[string]string{
+							"name": s.Name,
+							"id":   s.ID,
+						}
+
+						unifiedData := formatter.FormatUnifiedInverterData(rtData, strData, staticInfo, siteInfo, device.NodeName, device.ElementDn)
+						saveFormattedData(unifiedData, siteDisplay, devicePath, "data.json")
 					}
 
 					continue // Done with this device
 				}
 
 				// --- 2. POWER METER ---
+				// --- 2. POWER METER ---
 				if strings.Contains(strings.ToLower(device.NodeName), "powermeter") || strings.Contains(strings.ToLower(device.NodeName), "meter") {
 					fmt.Printf("        * Meter: %s\n", deviceName)
+
+					// Find Static Info
+					var model, sn string
+					for _, child := range slChildren {
+						if child.Dn == device.ElementDn {
+							if v, ok := child.ParamValues["50009"].(string); ok {
+								model = v
+							}
+							if v, ok := child.ParamValues["50012"].(string); ok {
+								sn = v
+							}
+							break
+						}
+					}
+
 					pmData, err := fetcher.FetchEMICData(ctx, device.ElementDn)
 					if err == nil && pmData != nil {
-						fmtData := formatter.FormatPowerMeterData(pmData.Data, device.NodeName, device.ElementDn)
-						saveFormattedData(fmtData, siteDisplay, devicePath, "data.json")
+						// fmtData := formatter.FormatPowerMeterData(pmData.Data, device.NodeName, device.ElementDn)
+
+						staticInfo := map[string]string{
+							"name":  device.NodeName,
+							"model": model,
+							"sn":    sn,
+						}
+						siteInfo := map[string]string{
+							"name": s.Name,
+							"id":   s.ID,
+						}
+
+						formatted := formatter.FormatUnifiedPowerMeterData(pmData.Data, staticInfo, siteInfo, device.NodeName, device.ElementDn)
+						saveFormattedData(formatted, siteDisplay, devicePath, "data.json")
 					}
 					continue
 				}
@@ -173,11 +234,37 @@ func main() {
 					strings.Contains(strings.ToLower(device.NodeName), "emi") ||
 					strings.Contains(strings.ToLower(device.NodeName), "weather") {
 					fmt.Printf("        * Sensor: %s\n", deviceName)
+
+					// Find Static Info
+					var model, sn string
+					for _, child := range slChildren {
+						if child.Dn == device.ElementDn {
+							if v, ok := child.ParamValues["50009"].(string); ok {
+								model = v
+							}
+							if v, ok := child.ParamValues["50012"].(string); ok {
+								sn = v
+							}
+							break
+						}
+					}
+
 					sensorData, err := fetcher.FetchEMICData(ctx, device.ElementDn)
 					if err == nil && sensorData != nil {
-						fmtData := formatter.FormatSensorData(sensorData.Data, device.NodeName, device.ElementDn)
+						// fmtData := formatter.FormatSensorData(sensorData.Data, device.NodeName, device.ElementDn)
 
-						saveFormattedData(fmtData, siteDisplay, devicePath, "data.json")
+						staticInfo := map[string]string{
+							"name":  device.NodeName, // Default name
+							"model": model,
+							"sn":    sn,
+						}
+						siteInfo := map[string]string{
+							"name": s.Name,
+							"id":   s.ID,
+						}
+
+						formatted := formatter.FormatUnifiedSensorData(sensorData.Data, staticInfo, siteInfo, device.NodeName, device.ElementDn)
+						saveFormattedData(formatted, siteDisplay, devicePath, "data.json")
 					}
 					continue
 				}

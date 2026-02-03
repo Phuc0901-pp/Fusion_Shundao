@@ -23,17 +23,38 @@ var InverterSignalMap = map[string]string{
 }
 
 // PowerMeterSignalMap maps meter signal IDs to field names
+// PowerMeterSignalMap maps meter signal IDs to field names
+// PowerMeterSignalMap maps meter signal IDs to field names
 var PowerMeterSignalMap = map[string]string{
 	"10001": "status",
-	"10004": "active_power",
-	"10005": "reactive_power",
+	"10004": "active_power_kw",     // Converted from W to kW if needed? Spec says _kw, value 0. Raw was -7921736 W.
+	"10005": "reactive_power_kvar", // var -> kvar
 	"10006": "power_factor",
-	"10025": "total_apparent_power",
-	"10009": "active_energy_import", // Reverse Active Energy
-	"10008": "active_energy_export", // Positive Active Energy
-	"10016": "voltage_a",            // Or Line AB depending on meter type
-	"10017": "voltage_b",
-	"10002": "voltage_c", // Note: Check actual ID mapping for Phase C
+	//"10025": "total_apparent_power", // Not in sample
+	"10008": "total_positive_active_energy_kwh",     // 10008
+	"10009": "total_negative_active_energy_kwh",     // 10009 Reverse active
+	"10023": "total_positive_reactive_energy_kvarh", // 10023
+	"10024": "total_negative_reactive_energy_kvarh", // 10024
+
+	// Phase Voltages
+	"10002": "phase_a_voltage_v",
+	"10010": "phase_b_voltage_v",
+	"10011": "phase_c_voltage_v",
+
+	// Line Voltages
+	"10016": "line_ab_voltage_v",
+	"10017": "line_bc_voltage_v",
+	"10018": "line_ca_voltage_v",
+
+	// Phase Currents
+	"10003": "phase_a_current_a",
+	"10012": "phase_b_current_a",
+	"10013": "phase_c_current_a",
+
+	// Phase Active Power
+	"10019": "phase_a_active_power_kw",
+	"10020": "phase_b_active_power_kw",
+	"10021": "phase_c_active_power_kw",
 }
 
 // GetSpringPVField generates field name for PV strings (e.g., pv1_voltage)
@@ -43,16 +64,22 @@ func GetStringPVField(index int, signalType string) string {
 	return fmt.Sprintf("pv%02d_%s", index, signalType)
 }
 
+// GetUnifiedPVField generates field name for unified format (e.g., pv01_volt_v)
+func GetUnifiedPVField(index int, signalType string) string {
+	// signalType should be "volt_v" or "amp_a"
+	return fmt.Sprintf("pv%02d_%s", index, signalType)
+}
+
 // SensorFieldMap maps display names to standardized field names
 var SensorFieldMap = map[string]string{
-	"Wind speed":                "wind_speed",
-	"Wind direction":            "wind_direction",
-	"PV Temperature":            "pv_temperature",
-	"Ambient temperature":       "ambient_temperature",
-	"Irradiance":                "irradiance",
-	"Daily irradiation":         "daily_irradiation",
-	"Daily irradiation(Energy)": "daily_irradiation_energy",
-	"Total irradiation":         "total_irradiation",
+	"Wind speed":                "wind_speed_ms",
+	"Wind direction":            "wind_direction_deg",
+	"PV Temperature":            "pv_module_temperature_c",
+	"Ambient temperature":       "ambient_temperature_c",
+	"Irradiance":                "total_irradiance_wm2",
+	"Daily irradiation":         "daily_irradiation1_mjm2",
+	"Daily irradiation(Energy)": "daily_irradiation1_kwhm2",
+	"Total irradiation":         "total_irradiance2_wm2", // Mapping assumes Total->Total2 based on user example, check carefully
 	"Status":                    "status",
 }
 

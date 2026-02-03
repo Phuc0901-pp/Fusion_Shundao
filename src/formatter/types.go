@@ -26,6 +26,45 @@ type StationFormattedData struct {
 	Data      OrderedDataMap `json:"data"`
 }
 
+// UnifiedInverterData represents the combined inverter data format
+type UnifiedInverterData struct {
+	Timestamp   int64          `json:"timestamp"`
+	SiteName    string         `json:"sitename"`
+	SiteID      string         `json:"siteid"`
+	Name        string         `json:"name"`
+	ID          string         `json:"id"`
+	Model       string         `json:"model"`
+	SN          string         `json:"sn"`
+	Measurement string         `json:"measurement"`
+	Fields      OrderedDataMap `json:"fields"`
+}
+
+// UnifiedSensorData represents the combined sensor data format
+type UnifiedSensorData struct {
+	Timestamp   int64          `json:"timestamp"`
+	SiteName    string         `json:"sitename"`
+	SiteID      string         `json:"siteid"`
+	Name        string         `json:"name"`
+	ID          string         `json:"id"`
+	Model       string         `json:"model"`
+	SN          string         `json:"sn"`
+	Measurement string         `json:"measurement"` // "sensor"
+	Fields      OrderedDataMap `json:"fields"`
+}
+
+// UnifiedPowerMeterData represents the combined power meter data format
+type UnifiedPowerMeterData struct {
+	Timestamp   int64          `json:"timestamp"`
+	SiteName    string         `json:"sitename"`
+	SiteID      string         `json:"siteid"`
+	Name        string         `json:"name"`
+	ID          string         `json:"id"`
+	Model       string         `json:"model"`
+	SN          string         `json:"sn"`
+	Measurement string         `json:"measurement"` // "zonemeter"
+	Fields      OrderedDataMap `json:"fields"`
+}
+
 // Implement MarshalJSON to sort keys: pvXX_status < pvXX_voltage < pvXX_current
 func (m OrderedDataMap) MarshalJSON() ([]byte, error) {
 	keys := make([]string, 0, len(m))
@@ -60,9 +99,9 @@ func (m OrderedDataMap) MarshalJSON() ([]byte, error) {
 					switch s {
 					case "status":
 						return 1
-					case "voltage":
+					case "voltage", "volt_v":
 						return 2
-					case "current":
+					case "current", "amp_a":
 						return 3
 					default:
 						return 4 // Other suffixes sorted alphabetically later

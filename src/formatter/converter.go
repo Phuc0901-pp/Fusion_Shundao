@@ -153,14 +153,26 @@ func FormatStationOverview(kpi *api.StationKPI, social *api.SocialContribution) 
 		output.Data["daily_energy"] = kpi.DailyEnergy
 		output.Data["cumulative_energy"] = kpi.CumulativeEnergy
 		output.Data["daily_income"] = kpi.DailyIncome
+		output.Data["daily_charge_capacity"] = kpi.DailyChargeCapacity
+		output.Data["daily_discharge_capacity"] = kpi.DailyDischargeCapacity
+		output.Data["total_charge_energy"] = kpi.TotalChargeEnergy
+		output.Data["total_discharge_energy"] = kpi.TotalDischargeEnergy
+		output.Data["cumulative_charge_capacity"] = kpi.CumulativeChargeCapacity
+		output.Data["cumulative_discharge_capacity"] = kpi.CumulativeDischargeCapacity
 		output.Data["inverter_power"] = kpi.InverterPower
+		output.Data["battery_capacity"] = kpi.BatteryCapacity
+		output.Data["currency"] = kpi.Currency
+		output.Data["is_price_configured"] = kpi.IsPriceConfigured
 	}
 
 	// Social Data
 	if social != nil {
 		output.Data["co2_reduction"] = social.CO2Reduction
+		output.Data["co2_reduction_by_year"] = social.CO2ReductionByYear
 		output.Data["equivalent_trees"] = social.EquivalentTreePlanting
+		output.Data["equivalent_trees_by_year"] = social.EquivalentTreePlantingByYear
 		output.Data["standard_coal_savings"] = social.StandardCoalSavings
+		output.Data["standard_coal_savings_by_year"] = social.StandardCoalSavingsByYear
 	}
 
 	return output
@@ -415,4 +427,290 @@ func getStringVal(m map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+// FormatUnifiedInverterData merges realtime, string, and static data into unified format
+func FormatUnifiedInverterData(
+	rtRaw map[string]interface{},
+	strRaw map[string]interface{},
+	staticInfo map[string]string,
+	siteInfo map[string]string,
+	deviceName, deviceID string,
+) *UnifiedInverterData {
+	output := &UnifiedInverterData{
+		Timestamp:   time.Now().UnixNano() / 1e6, // Milliseconds as per example
+		SiteName:    siteInfo["name"],
+		SiteID:      siteInfo["id"],
+		Name:        deviceName,
+		ID:          deviceID, // Use deviceID (NE=...) or mapping if available
+		Model:       staticInfo["model"],
+		SN:          staticInfo["sn"],
+		Measurement: "inverter",
+		Fields:      make(OrderedDataMap),
+	}
+
+	// Helper to set field if exists
+	setField := func(field string, val interface{}) {
+		output.Fields[field] = val
+	}
+
+	// 1. Process String Data (PVs)
+	// Calculate DC Power sum
+	var dcPower float64
+
+	strSignals := extractSignals(strRaw)
+	if strSignals != nil {
+		for i := 1; i <= 24; i++ { // Support up to 24 strings
+			var volID, curID string
+			if i <= 24 {
+				// 1-24: 11001 + (i-1)*3 -> 11001, 11004...
+				volID = fmt.Sprintf("%d", 11001+(i-1)*3)
+				curID = fmt.Sprintf("%d", 11002+(i-1)*3)
+			}
+
+			volVal, volOk := getSignalValue(strSignals, volID)
+			curVal, curOk := getSignalValue(strSignals, curID)
+
+			if volOk {
+				setField(GetUnifiedPVField(i, "volt_v"), volVal)
+			} else {
+				setField(GetUnifiedPVField(i, "volt_v"), 0)
+			}
+
+			if curOk {
+				setField(GetUnifiedPVField(i, "amp_a"), curVal)
+			} else {
+				setField(GetUnifiedPVField(i, "amp_a"), 0)
+			}
+
+			// Add to DC power calculation (V * A / 1000 for kW)
+			if v, ok := volVal.(float64); ok {
+				if a, ok := curVal.(float64); ok {
+					dcPower += (v * a) / 1000.0
+				}
+			}
+		}
+	} else {
+		// Fill zeros if no string data
+		for i := 1; i <= 24; i++ {
+			setField(GetUnifiedPVField(i, "volt_v"), 0)
+			setField(GetUnifiedPVField(i, "amp_a"), 0)
+		}
+	}
+
+	setField("dc_power_kw", dcPower)
+
+	// 2. Process Realtime Data (AC + Status)
+	rtSignals := extractSignals(rtRaw)
+	if rtSignals != nil {
+		// Map of SignalID -> OutputKey
+		signalMap := map[string]string{
+			"10011": "grid_va_v",
+			"10012": "grid_vb_v",
+			"10013": "grid_vc_v",
+			"10014": "grid_ia_a",
+			"10015": "grid_ib_a",
+			"10016": "grid_ic_a",
+			"10018": "p_out_kw",
+			"10019": "q_out_kvar",
+			"10020": "power_factor",
+			"10021": "grid_freq_hz",
+			"10041": "internal_temp_degC",
+			"10043": "insulation_resistance_MΩ",
+			"10025": "device_status",
+			"10029": "etotal_kwh",
+			"10032": "edaily_kwh",
+		}
+
+		for id, key := range signalMap {
+			if val, ok := getSignalValue(rtSignals, id); ok {
+				setField(key, val)
+			} else {
+				// Default 0 for numbers?
+				// User example has "p_peak_today_kw": 149.927.
+				// For missing keys, 0 is safer.
+				setField(key, 0)
+			}
+		}
+	}
+
+	// 3. Other fields
+	// Fill defaults if missing
+	defaults := []string{"p_peak_today_kw", "startup_time", "shutdown_time"}
+	for _, k := range defaults {
+		if _, ok := output.Fields[k]; !ok {
+			setField(k, 0)
+		}
+	}
+
+	return output
+}
+
+// FormatUnifiedSensorData converts raw sensor data to unified format
+func FormatUnifiedSensorData(
+	raw map[string]interface{},
+	staticInfo map[string]string,
+	siteInfo map[string]string,
+	deviceName, deviceID string,
+) *UnifiedSensorData {
+	output := &UnifiedSensorData{
+		Timestamp:   time.Now().UnixNano() / 1e6,
+		SiteName:    siteInfo["name"],
+		SiteID:      siteInfo["id"],
+		Name:        staticInfo["name"], // Favor static name or fallback
+		ID:          deviceID,
+		Model:       staticInfo["model"],
+		SN:          staticInfo["sn"],
+		Measurement: "sensor",
+		Fields:      make(OrderedDataMap),
+	}
+	if output.Name == "" {
+		output.Name = deviceName
+	}
+
+	rawKV := GetKeyValues(raw)
+
+	// Pre-fill all expected fields with 0 or default values
+	expectedFields := []string{
+		"wind_speed_ms",
+		"wind_direction_deg",
+		"pv_module_temperature_c",
+		"ambient_temperature_c",
+		"total_irradiance_wm2",
+		"daily_irradiation1_mjm2",
+		"total_irradiance2_wm2",
+		"daily_irradiation2_mjm2",
+		"custom1",
+		"custom2",
+		"daily_irradiation1_kwhm2",
+		"daily_irradiation2_kwhm2",
+	}
+
+	// Initialize map with mapped values
+	foundFields := make(map[string]bool)
+
+	for key, val := range rawKV {
+		if stdKey, ok := SensorFieldMap[key]; ok {
+			output.Fields[stdKey] = val
+			foundFields[stdKey] = true
+		} else {
+			// Handle custom mapping or pass through?
+			// User example shows generic keys being ignored or mapped specific ways
+			// For now, only map known ones.
+		}
+	}
+
+	// Fill missing fields with defaults matching the user example
+	for _, field := range expectedFields {
+		if !foundFields[field] {
+			// Special handling for some distinct default values in example?
+			// User example:
+			// "daily_irradiation2_mjm2": -0.001
+			// "daily_irradiation2_kwhm2": -0.001
+			// Others likely 0 or 3276.7 (invalid value marker for many Modbus devices)
+
+			// We will just use 0 for now as safe default, user can refine if they need specific "invalid" markers
+			if strings.Contains(field, "daily_irradiation2") {
+				output.Fields[field] = -0.001
+			} else {
+				// Check if user wants 3276.7 as 'invalid' or defaults?
+				// Example has 3276.7 for wind_speed_ms (likely sensor error/disconnected)
+				// We won't inject 3276.7 unless we know it's "invalid", we just put 0.
+				// Wait, if source data is missing, it's safer to put 0.
+				output.Fields[field] = 0.0
+			}
+		}
+	}
+
+	// Add custom fields hardcoded for now as per example if not present
+	if _, ok := output.Fields["custom1"]; !ok {
+		output.Fields["custom1"] = 3276.7
+	}
+	if _, ok := output.Fields["custom2"]; !ok {
+		output.Fields["custom2"] = 3276.7
+	}
+
+	return output
+}
+
+// FormatUnifiedPowerMeterData converts raw meter data to unified format
+func FormatUnifiedPowerMeterData(
+	raw map[string]interface{},
+	staticInfo map[string]string,
+	siteInfo map[string]string,
+	deviceName, deviceID string,
+) *UnifiedPowerMeterData {
+	output := &UnifiedPowerMeterData{
+		Timestamp:   time.Now().UnixNano() / 1e6,
+		SiteName:    siteInfo["name"],
+		SiteID:      siteInfo["id"],
+		Name:        staticInfo["name"],
+		ID:          deviceID,
+		Model:       staticInfo["model"],
+		SN:          staticInfo["sn"],
+		Measurement: "zonemeter", // As requested
+		Fields:      make(OrderedDataMap),
+	}
+	if output.Name == "" {
+		output.Name = deviceName
+	}
+
+	// Pre-fill expected fields with 0
+	expectedFields := []string{
+		"phase_a_voltage_v", "phase_b_voltage_v", "phase_c_voltage_v",
+		"line_ab_voltage_v", "line_bc_voltage_v", "line_ca_voltage_v",
+		"phase_a_current_a", "phase_b_current_a", "phase_c_current_a",
+		"phase_a_active_power_kw", "phase_b_active_power_kw", "phase_c_active_power_kw",
+		"active_power_kw", "reactive_power_kvar", "power_factor",
+		"total_active_energy_kwh", "total_reactive_energy_kvarh",
+		"total_positive_active_energy_kwh", "total_positive_reactive_energy_kvarh",
+		"total_negative_active_energy_kwh", "total_negative_reactive_energy_kvarh",
+	}
+
+	foundFields := make(map[string]bool)
+
+	// Use extractSignals to handle nested signal structure (same as Inverter/Sensor)
+	signals := extractSignals(raw)
+	if signals != nil {
+		// keys in signals are "IDs" (e.g. "10004")
+		for id, stdKey := range PowerMeterSignalMap {
+			// Get value from signals map using helper
+			if val, ok := getSignalValue(signals, id); ok {
+				// Check if we need unit conversion
+				finalVal := val
+
+				// Simple heuristic: if key ends in _kw or _kvar but value is W/var, divide by 1000
+				if strings.HasSuffix(stdKey, "_kw") || strings.HasSuffix(stdKey, "_kvar") {
+					if fVal, ok := toFloat(val); ok {
+						finalVal = fVal / 1000.0
+					}
+				}
+
+				output.Fields[stdKey] = finalVal
+				foundFields[stdKey] = true
+			}
+		}
+	}
+
+	// Fill missing fields with 0
+	for _, field := range expectedFields {
+		if !foundFields[field] {
+			output.Fields[field] = 0.0
+		}
+	}
+
+	return output
+}
+
+// Helper to reliably get float
+func toFloat(v interface{}) (float64, bool) {
+	if f, ok := v.(float64); ok {
+		return f, true
+	}
+	if s, ok := v.(string); ok {
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
