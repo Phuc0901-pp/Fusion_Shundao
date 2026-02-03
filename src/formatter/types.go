@@ -76,10 +76,17 @@ func (m OrderedDataMap) MarshalJSON() ([]byte, error) {
 	sort.Slice(keys, func(i, j int) bool {
 		ki, kj := keys[i], keys[j]
 
-		// Check if both are PV keys (start with pv)
+		// Check if both are PV keys (start with pv followed by digit)
+		// Simple check: starts with "pv"
 		isPVi := strings.HasPrefix(ki, "pv")
 		isPVj := strings.HasPrefix(kj, "pv")
 
+		// Case 1: One is PV, one is not. Non-PV comes first.
+		if isPVi != isPVj {
+			return !isPVi // if i is PV (true), i should be > j (false) -> return false. If i not PV (false), return true.
+		}
+
+		// Case 2: Both are PV keys
 		if isPVi && isPVj {
 			// Split into parts: pvXX and suffix
 			partsI := strings.SplitN(ki, "_", 2)
@@ -117,7 +124,7 @@ func (m OrderedDataMap) MarshalJSON() ([]byte, error) {
 			}
 		}
 
-		// Default alphabetical sort
+		// Case 3: Both are non-PV keys (or malformed PV keys) -> Alphabetical
 		return ki < kj
 	})
 
