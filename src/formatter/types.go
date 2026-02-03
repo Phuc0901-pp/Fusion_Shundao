@@ -20,10 +20,11 @@ type FusionFormattedData struct {
 
 // StationFormattedData represents the station overview data
 type StationFormattedData struct {
-	Timestamp int64          `json:"timestamp"`
-	SiteName  string         `json:"sitename"`
-	SiteID    string         `json:"siteid,omitempty"`
-	Data      OrderedDataMap `json:"data"`
+	Timestamp   int64          `json:"timestamp"`
+	SiteName    string         `json:"sitename"`
+	SiteID      string         `json:"siteid,omitempty"`
+	Measurement string         `json:"measurement"`
+	Fields      OrderedDataMap `json:"fields"`
 }
 
 // UnifiedInverterData represents the combined inverter data format

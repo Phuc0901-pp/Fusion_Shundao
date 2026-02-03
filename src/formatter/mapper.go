@@ -30,7 +30,7 @@ var PowerMeterSignalMap = map[string]string{
 	"10004": "active_power_kw",     // Converted from W to kW if needed? Spec says _kw, value 0. Raw was -7921736 W.
 	"10005": "reactive_power_kvar", // var -> kvar
 	"10006": "power_factor",
-	//"10025": "total_apparent_power", // Not in sample
+	"10025": "total_apparent_power_kva",
 	"10008": "total_positive_active_energy_kwh",     // 10008
 	"10009": "total_negative_active_energy_kwh",     // 10009 Reverse active
 	"10023": "total_positive_reactive_energy_kvarh", // 10023

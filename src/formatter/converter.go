@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"fusion/src/api"
+	"fusion/src/utils"
 )
 
 // FormatInverterData converts raw inverter response to FusionFormattedData
@@ -140,39 +141,41 @@ func FormatPowerMeterData(raw map[string]interface{}, deviceName, deviceID strin
 
 // FormatStationOverview combines KPI and Social data
 // FormatStationOverview combines KPI and Social data
+// FormatStationOverview converts station KPI and Social data to formatted struct
 func FormatStationOverview(kpi *api.StationKPI, social *api.SocialContribution) *StationFormattedData {
 	output := &StationFormattedData{
-		Timestamp: time.Now().Unix(),
-		SiteName:  kpi.StationName,
-		SiteID:    kpi.StationDn,
-		Data:      make(OrderedDataMap),
+		Timestamp:   time.Now().Unix(),
+		SiteName:    kpi.StationName,
+		SiteID:      utils.GenerateUUID(kpi.StationDn),
+		Measurement: "plant",
+		Fields:      make(OrderedDataMap),
 	}
 
 	// KPI Data
 	if kpi != nil {
-		output.Data["daily_energy"] = kpi.DailyEnergy
-		output.Data["cumulative_energy"] = kpi.CumulativeEnergy
-		output.Data["daily_income"] = kpi.DailyIncome
-		output.Data["daily_charge_capacity"] = kpi.DailyChargeCapacity
-		output.Data["daily_discharge_capacity"] = kpi.DailyDischargeCapacity
-		output.Data["total_charge_energy"] = kpi.TotalChargeEnergy
-		output.Data["total_discharge_energy"] = kpi.TotalDischargeEnergy
-		output.Data["cumulative_charge_capacity"] = kpi.CumulativeChargeCapacity
-		output.Data["cumulative_discharge_capacity"] = kpi.CumulativeDischargeCapacity
-		output.Data["inverter_power"] = kpi.InverterPower
-		output.Data["battery_capacity"] = kpi.BatteryCapacity
-		output.Data["currency"] = kpi.Currency
-		output.Data["is_price_configured"] = kpi.IsPriceConfigured
+		output.Fields["daily_energy"] = kpi.DailyEnergy
+		output.Fields["cumulative_energy"] = kpi.CumulativeEnergy
+		output.Fields["daily_income"] = kpi.DailyIncome
+		output.Fields["daily_charge_capacity"] = kpi.DailyChargeCapacity
+		output.Fields["daily_discharge_capacity"] = kpi.DailyDischargeCapacity
+		output.Fields["total_charge_energy"] = kpi.TotalChargeEnergy
+		output.Fields["total_discharge_energy"] = kpi.TotalDischargeEnergy
+		output.Fields["cumulative_charge_capacity"] = kpi.CumulativeChargeCapacity
+		output.Fields["cumulative_discharge_capacity"] = kpi.CumulativeDischargeCapacity
+		output.Fields["inverter_power"] = kpi.InverterPower
+		output.Fields["battery_capacity"] = kpi.BatteryCapacity
+		output.Fields["currency"] = kpi.Currency
+		output.Fields["is_price_configured"] = kpi.IsPriceConfigured
 	}
 
 	// Social Data
 	if social != nil {
-		output.Data["co2_reduction"] = social.CO2Reduction
-		output.Data["co2_reduction_by_year"] = social.CO2ReductionByYear
-		output.Data["equivalent_trees"] = social.EquivalentTreePlanting
-		output.Data["equivalent_trees_by_year"] = social.EquivalentTreePlantingByYear
-		output.Data["standard_coal_savings"] = social.StandardCoalSavings
-		output.Data["standard_coal_savings_by_year"] = social.StandardCoalSavingsByYear
+		output.Fields["co2_reduction"] = social.CO2Reduction
+		output.Fields["co2_reduction_by_year"] = social.CO2ReductionByYear
+		output.Fields["equivalent_trees"] = social.EquivalentTreePlanting
+		output.Fields["equivalent_trees_by_year"] = social.EquivalentTreePlantingByYear
+		output.Fields["standard_coal_savings"] = social.StandardCoalSavings
+		output.Fields["standard_coal_savings_by_year"] = social.StandardCoalSavingsByYear
 	}
 
 	return output
@@ -440,9 +443,9 @@ func FormatUnifiedInverterData(
 	output := &UnifiedInverterData{
 		Timestamp:   time.Now().UnixNano() / 1e6, // Milliseconds as per example
 		SiteName:    siteInfo["name"],
-		SiteID:      siteInfo["id"],
+		SiteID:      utils.GenerateUUID(siteInfo["id"]),
 		Name:        deviceName,
-		ID:          deviceID, // Use deviceID (NE=...) or mapping if available
+		ID:          utils.GenerateUUID(deviceID), // Use deviceID (NE=...) or mapping if available
 		Model:       staticInfo["model"],
 		SN:          staticInfo["sn"],
 		Measurement: "inverter",
@@ -515,11 +518,12 @@ func FormatUnifiedInverterData(
 			"10019": "q_out_kvar",
 			"10020": "power_factor",
 			"10021": "grid_freq_hz",
-			"10041": "internal_temp_degC",
-			"10043": "insulation_resistance_MΩ",
+			"10023": "internal_temp_degC",
+			"10024": "insulation_resistance_MΩ",
 			"10025": "device_status",
 			"10029": "etotal_kwh",
 			"10032": "edaily_kwh",
+			"10006": "rated_power_kw",
 		}
 
 		for id, key := range signalMap {
@@ -556,9 +560,9 @@ func FormatUnifiedSensorData(
 	output := &UnifiedSensorData{
 		Timestamp:   time.Now().UnixNano() / 1e6,
 		SiteName:    siteInfo["name"],
-		SiteID:      siteInfo["id"],
+		SiteID:      utils.GenerateUUID(siteInfo["id"]),
 		Name:        staticInfo["name"], // Favor static name or fallback
-		ID:          deviceID,
+		ID:          utils.GenerateUUID(deviceID),
 		Model:       staticInfo["model"],
 		SN:          staticInfo["sn"],
 		Measurement: "sensor",
@@ -643,9 +647,9 @@ func FormatUnifiedPowerMeterData(
 	output := &UnifiedPowerMeterData{
 		Timestamp:   time.Now().UnixNano() / 1e6,
 		SiteName:    siteInfo["name"],
-		SiteID:      siteInfo["id"],
+		SiteID:      utils.GenerateUUID(siteInfo["id"]),
 		Name:        staticInfo["name"],
-		ID:          deviceID,
+		ID:          utils.GenerateUUID(deviceID),
 		Model:       staticInfo["model"],
 		SN:          staticInfo["sn"],
 		Measurement: "zonemeter", // As requested
