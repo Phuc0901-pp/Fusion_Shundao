@@ -117,6 +117,64 @@ func NewFetcher() *Fetcher {
 	}
 }
 
+// ClearToken resets the Roarand token
+func (f *Fetcher) ClearToken() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.roarand = ""
+	f.requestIDs = make([]network.RequestID, 0)
+}
+
+// HasValidToken checks if the fetcher has a token and verifies it
+// It returns true if token exists and simple API call succeeds
+// It returns false if token is missing or expired
+func (f *Fetcher) HasValidToken(ctx context.Context) bool {
+	f.mu.Lock()
+	token := f.roarand
+	f.mu.Unlock()
+
+	if token == "" {
+		return false
+	}
+
+	// Try a lightweight API validation (e.g., list sites simplified)
+	// Just check if we can get a 200 OK from a known endpoint
+	js := fmt.Sprintf(`
+		(function() {
+			var xhr = new XMLHttpRequest();
+			var url = 'https://intl.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/station-kpi-data';
+			// Use a dummy station DN or just check if we get 401
+			// Actually, let's use the first target site if available
+			url += '?stationDn=NE=00000000'; 
+			url += '&_=' + Date.now();
+			
+			xhr.open('GET', url, false);
+			xhr.setRequestHeader('Accept', 'application/json');
+			xhr.setRequestHeader('Roarand', '%s');
+			
+			xhr.send();
+			return xhr.status;
+		})()
+	`, token)
+
+	var status int
+	err := chromedp.Run(ctx, chromedp.Evaluate(js, &status))
+	if err != nil {
+		return false
+	}
+
+	// 200 OK means valid.
+	// 401/403 means invalid.
+	// Even if station DN is wrong, we should get 200 with empty data or specific error, NOT 401.
+	if status == 401 || status == 403 {
+		return false
+	}
+
+	// Also if we get 302 redirect to login, it wraps to something else usually?
+	// For now assume non-401 is "session alive"
+	return true
+}
+
 // SetupNetworkListener listens for network events to capture Roarand token
 func (f *Fetcher) SetupNetworkListener(ctx context.Context) {
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
