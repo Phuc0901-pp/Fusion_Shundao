@@ -4,9 +4,12 @@ fusion_test.exe
 *test.exe
 
 # Output directories
+# Output directories
 output/
 backup/
 Fusion_Data/
+logs/
+*.log
 
 # IDE files
 .vscode/

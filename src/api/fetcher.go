@@ -13,7 +13,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 
-	"fusion/config/site"
+	"fusion/src/config"
 )
 
 // SiteNode represents a node in the site tree (full data)
@@ -59,7 +59,7 @@ func FilterSites(jsonData string) (string, error) {
 
 	// Get target site IDs from config
 	targetIDs := make(map[string]bool)
-	for _, s := range site.TargetSites {
+	for _, s := range config.App.Sites {
 		targetIDs[s.ID] = true
 	}
 
@@ -336,6 +336,10 @@ func (f *Fetcher) FetchSiteData(ctx context.Context, siteID string) (string, err
 }
 
 func (f *Fetcher) callAPIDirectly(ctx context.Context, token, targetDn string) string {
+	endpoint := config.App.API.Endpoints["locate_tree"]
+	subNodeTypes := config.App.API.Params.SubNodeTypeIDs
+	typeIDInclude := config.App.API.Params.TypeIDInclude
+
 	js := fmt.Sprintf(`
 		(function() {
 			var xhr = new XMLHttpRequest();
@@ -354,7 +358,7 @@ func (f *Fetcher) callAPIDirectly(ctx context.Context, token, targetDn string) s
 			xhr.send();
 			return xhr.responseText;
 		})()
-	`, site.APIEndpoint, strings.ReplaceAll(targetDn, "=", "%3D"), site.SubNodeTypeIDs, site.TypeIDInclude, token)
+	`, endpoint, strings.ReplaceAll(targetDn, "=", "%3D"), subNodeTypes, typeIDInclude, token)
 
 	var result string
 	chromedp.Evaluate(js, &result).Do(ctx)
@@ -426,11 +430,6 @@ func (f *Fetcher) FetchSmartLoggers(ctx context.Context, parentDn string) ([]Sma
 		return nil, err
 	}
 
-	// Debug: save raw response
-	fmt.Printf("      [DEBUG] Response length: %d\n", len(result))
-	if len(result) > 0 {
-		fmt.Printf("      [DEBUG] First 100 chars: %s\n", result[:min(100, len(result))])
-	}
 
 	if !strings.HasPrefix(result, "{") {
 		// Save for debugging
@@ -456,7 +455,6 @@ func (f *Fetcher) FetchSmartLoggers(ctx context.Context, parentDn string) ([]Sma
 	var devices []SmartLoggerDevice
 	extractDevicesFromJSON(response.ChildList, &devices)
 
-	fmt.Printf("      [DEBUG] Extracted %d devices\n", len(devices))
 
 	return devices, nil
 }
@@ -1004,7 +1002,7 @@ func (f *Fetcher) GetRoarand() string {
 // SaveJSON saves data to a JSON file in the specified subdirectory
 func SaveJSON(data, subdir, filename string) error {
 	// Create output directory with subdirectory if not exists
-	outputPath := filepath.Join(site.OutputDir, subdir)
+	outputPath := filepath.Join("output", subdir)
 	if err := os.MkdirAll(outputPath, 0755); err != nil {
 		return err
 	}

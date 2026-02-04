@@ -10,21 +10,28 @@ import (
 	"github.com/chromedp/chromedp"
 
 	"fusion/config/auth"
+	"fusion/src/config"
+	"fusion/src/utils"
 )
 
 // PerformLogin navigates to FusionSolar and logs in
 func PerformLogin(ctx context.Context) error {
-	username, password, loginURL := auth.Credentials()
+	username, password, _ := auth.Credentials()
+	loginURL := config.App.API.Endpoints["login_page"]
+	if loginURL == "" {
+		// Fallback for backward compatibility if json missing
+		_, _, loginURL = auth.Credentials() 
+	}
 
 	return chromedp.Run(ctx,
 		chromedp.Navigate(loginURL),
-		chromedp.WaitVisible(`#username`, chromedp.ByID),
+		chromedp.WaitVisible(config.App.Selectors.UsernameInput, chromedp.ByID),
 		chromedp.Sleep(2*time.Second),
 
 		// Fill username
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Println("[1/4] Điền username...")
-			chromedp.Click(`#username`, chromedp.ByID).Do(ctx)
+			utils.LogInfo("[1/4] Điền username...")
+			chromedp.Click(config.App.Selectors.UsernameInput, chromedp.ByID).Do(ctx)
 			time.Sleep(300 * time.Millisecond)
 			for _, char := range username {
 				input.InsertText(string(char)).Do(ctx)
@@ -35,8 +42,8 @@ func PerformLogin(ctx context.Context) error {
 
 		// Fill password
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Println("[2/4] Điền password...")
-			chromedp.Click(`input[type="password"]`, chromedp.ByQuery).Do(ctx)
+			utils.LogInfo("[2/4] Điền password...")
+			chromedp.Click(config.App.Selectors.PasswordInput, chromedp.ByQuery).Do(ctx)
 			time.Sleep(300 * time.Millisecond)
 			for _, char := range password {
 				input.InsertText(string(char)).Do(ctx)
@@ -49,13 +56,13 @@ func PerformLogin(ctx context.Context) error {
 
 		// Press Enter to login
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Println("[3/4] Nhấn Enter...")
+			utils.LogInfo("[3/4] Nhấn Enter...")
 			return chromedp.KeyEvent("\r").Do(ctx)
 		}),
 
 		// Wait for login
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Println("[4/4] Chờ đăng nhập...")
+			utils.LogInfo("[4/4] Chờ đăng nhập...")
 
 			for i := 0; i < 30; i++ {
 				time.Sleep(1 * time.Second)
@@ -64,7 +71,7 @@ func PerformLogin(ctx context.Context) error {
 				chromedp.Location(&url).Do(ctx)
 
 				if !strings.Contains(url, "login") && len(url) > 50 {
-					fmt.Println("      ✓ Đăng nhập thành công!")
+					utils.LogInfo("      ✓ Đăng nhập thành công!")
 					return nil
 				}
 			}

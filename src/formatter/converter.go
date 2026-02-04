@@ -212,7 +212,6 @@ func extractSignals(raw map[string]interface{}) map[string]interface{} {
 		}
 
 		if isNested {
-			fmt.Println("DEBUG: extractSignals detected NESTED structure")
 			// Structure A: Nested (Inverter)
 			for _, item := range dataList {
 				if itemMap, ok := item.(map[string]interface{}); ok {
@@ -222,7 +221,6 @@ func extractSignals(raw map[string]interface{}) map[string]interface{} {
 				}
 			}
 		} else {
-			fmt.Println("DEBUG: extractSignals detected FLAT structure")
 			// Structure B: Flat (SmartLogger)
 			// Treat the whole list as signals
 			mergeSignals(allSignals, dataList)
@@ -263,7 +261,6 @@ func extractSignals(raw map[string]interface{}) map[string]interface{} {
 
 // mergeSignals helper to add list-based signals into the map
 func mergeSignals(target map[string]interface{}, sourceList []interface{}) {
-	fmt.Printf("DEBUG: mergeSignals processing %d items\n", len(sourceList))
 	for i, s := range sourceList {
 		if sMap, ok := s.(map[string]interface{}); ok {
 			// Extract ID
@@ -341,11 +338,9 @@ func FormatSmartLoggerData(raw map[string]interface{}, deviceName, deviceID stri
 	}
 
 	// Debug
-	fmt.Printf("DEBUG: FormatSmartLoggerData Raw keys: %v\n", len(raw))
 
 	// SmartLogger data like { "data": [ {"name": "IP", "value": "..."}, ... ] }
 	rawKV := GetKeyValues(raw)
-	fmt.Printf("DEBUG: GetKeyValues returned %d items\n", len(rawKV))
 
 	for key, val := range rawKV {
 		if stdKey, ok := SmartLoggerFieldMap[key]; ok {

@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"fusion/config/site"
 	"fusion/src/api"
 	"fusion/src/browser"
+	"fusion/src/config"
 	"fusion/src/formatter"
 	"fusion/src/login"
+	"fusion/src/utils"
 )
 
 // DeviceTask holds all info needed to process a device
@@ -30,9 +31,15 @@ type DeviceTask struct {
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-	fmt.Println("=== FusionSolar Site Data Fetcher (Continuous 24/7) ===")
-	fmt.Println("Đang khởi động (headless check)...")
+	// 1. Initialize System
+	if err := config.LoadConfig(); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	utils.InitLogger()
+	formatter.InitMapper()
+
+	utils.LogInfo("=== FusionSolar Site Data Fetcher (Continuous 24/7) ===")
+	utils.LogInfo("Đang khởi động (headless check)...")
 
 	// Create headless browser with VERY LONG timeout (e.g., 7 days) to stay alive
 	ctx, cancel := browser.NewHeadless(168 * time.Hour)
@@ -94,9 +101,9 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 	var sensorTasks []DeviceTask
 
 	// --- PHASE 1: DISCOVERY & KPI ---
-	for _, s := range site.TargetSites {
+	for _, s := range config.App.Sites {
 		siteDisplay := strings.ReplaceAll(s.Name, " ", "_")
-		fmt.Printf("\n--- XỬ LÝ TRẠM: %s ---\n", s.Name)
+		utils.LogInfo("\n--- XỬ LÝ TRẠM: %s ---\n", s.Name)
 
 		// 1. Station Overview
 		fetchStationOverview(ctx, fetcher, s, siteDisplay)
@@ -279,7 +286,7 @@ func processSimpleDeviceBatch(ctx context.Context, f *api.Fetcher, tasks []Devic
 
 // Helpers
 
-func fetchStationOverview(ctx context.Context, f *api.Fetcher, s site.SiteConfig, siteDisplay string) {
+func fetchStationOverview(ctx context.Context, f *api.Fetcher, s config.SiteConfig, siteDisplay string) {
 	kpi, _ := f.FetchStationKPI(ctx, s.ID)
 	if kpi != nil {
 		kpi.StationName = s.Name
