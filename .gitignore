@@ -1,0 +1,25 @@
+# Binaries
+fusion.exe
+fusion_test.exe
+*test.exe
+
+# Output directories
+# Output directories
+output/
+backup/
+Fusion_Data/
+logs/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# MCP/Assistant files
+.gemini/
+.agent/
+brain/
