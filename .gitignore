@@ -1,0 +1,28 @@
+# Exe files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+logs/
+
+# Output Data
+output/
+debug_*.go
+debug_*.json
+
+# Node modules & Build
+node_modules/
+dist/
+.env
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Go
+go.sum
