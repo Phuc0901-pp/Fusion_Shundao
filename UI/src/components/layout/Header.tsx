@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-// import { cn } from '../../utils/cn';
 import { WeatherWidget } from '../widgets/WeatherWidget';
+import { Sun } from 'lucide-react';
 
 import logo from '../../assets/LOGO.png';
 
@@ -13,14 +13,19 @@ export const Header: React.FC = () => {
     }, []);
 
     return (
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30">
-
+        <header className="h-16 glass-strong border-b border-white/30 flex items-center justify-between px-6 sticky top-0 z-30 shadow-sm">
             {/* Left: Branding */}
             <div className="flex items-center gap-3">
-                <img src={logo} alt="Shundao Solar" className="h-10 w-auto" />
-                <h1 className="text-xl font-bold text-slate-900">
-                    SHUNDAO SOLAR
-                </h1>
+                <div className="relative">
+                    <img src={logo} alt="Shundao Solar" className="h-10 w-auto relative z-10" />
+                    <div className="absolute inset-0 bg-solar-400 blur-lg opacity-30 animate-pulse" />
+                </div>
+                <div>
+                    <h1 className="text-xl font-bold text-gradient">
+                        SHUNDAO SOLAR
+                    </h1>
+                    <p className="text-xs text-slate-500 -mt-0.5">Solar Monitoring System</p>
+                </div>
             </div>
 
             {/* Right: Actions */}
@@ -31,19 +36,26 @@ export const Header: React.FC = () => {
                 </div>
 
                 {/* Clock */}
-                <div className="hidden md:block text-right mr-4 border-l border-slate-200 pl-4 h-8 flex flex-col justify-center">
-                    <p className="text-sm font-semibold text-slate-900 leading-none mb-0.5">{time.toLocaleTimeString()}</p>
-                    <p className="text-xs text-slate-500 leading-none">{time.toLocaleDateString('vi-VN')}</p>
+                <div className="hidden md:flex flex-col items-end border-l border-slate-200/50 pl-4 h-8 justify-center">
+                    <p className="text-sm font-semibold text-slate-800 leading-none mb-0.5 tabular-nums">
+                        {time.toLocaleTimeString()}
+                    </p>
+                    <p className="text-xs text-slate-500 leading-none">
+                        {time.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                    </p>
                 </div>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-solar-500 to-amber-300 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                        AD
+                <div className="flex items-center gap-3 pl-4 border-l border-slate-200/50">
+                    <div className="relative">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-solar-500 via-amber-400 to-orange-400 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                            <Sun size={18} />
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse-glow" />
                     </div>
                     <div className="hidden lg:block">
-                        <p className="text-sm font-medium text-slate-900">Admin</p>
-                        <p className="text-xs text-slate-500">Quản Trị Viên</p>
+                        <p className="text-sm font-medium text-slate-800">Admin</p>
+                        <p className="text-xs text-slate-500">Đang hoạt động</p>
                     </div>
                 </div>
             </div>

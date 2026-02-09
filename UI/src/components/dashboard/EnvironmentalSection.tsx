@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Leaf } from 'lucide-react';
+import { Leaf, Trees, Wind } from 'lucide-react';
 import { MetricCard } from '../widgets/MetricCard';
 import { MetricDetailModal } from '../modals/MetricDetailModal';
 import type { Site, KPI } from '../../types';
+import { formatCompactNumber } from '../../utils/formatters';
 
 interface EnvironmentalSectionProps {
     kpi?: KPI;
@@ -31,40 +32,28 @@ export const EnvironmentalSection: React.FC<EnvironmentalSectionProps> = ({ kpi,
         })) || [];
     };
 
+    const metrics = [
+        { title: "Tiết kiệm than chuẩn", value: kpi?.standardCoalSaved ? formatCompactNumber(kpi.standardCoalSaved) : "0", unit: "Tấn", icon: Leaf, color: "green", field: "standardCoalSaved" as keyof KPI },
+        { title: "Giảm thải CO2", value: kpi?.co2Reduction ? formatCompactNumber(kpi.co2Reduction) : "0", unit: "Tấn", icon: Wind, color: "emerald", field: "co2Reduction" as keyof KPI },
+        { title: "Cây trồng tương đương", value: kpi?.treesPlanted ? formatCompactNumber(kpi.treesPlanted) : "0", unit: "Cây", icon: Trees, color: "green", field: "treesPlanted" as keyof KPI }
+    ];
+
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {metrics.map((metric, index) => (
                 <MetricCard
-                    title="Tiết kiệm than chuẩn"
-                    value={kpi?.standardCoalSaved ? kpi.standardCoalSaved.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="Tấn"
-                    icon={Leaf}
-                    color="green"
+                    key={metric.field}
+                    title={metric.title}
+                    value={metric.value}
+                    unit={metric.unit}
+                    icon={metric.icon}
+                    color={metric.color}
                     loading={isLoading}
                     variant="flat"
-                    onClick={() => handleCardClick("Tiết kiệm than chuẩn", "Tấn", "standardCoalSaved", Leaf, "green")}
+                    delay={index + 5}
+                    onClick={() => handleCardClick(metric.title, metric.unit, metric.field, metric.icon, metric.color)}
                 />
-                <MetricCard
-                    title="Giảm thải CO2"
-                    value={kpi?.co2Reduction ? kpi.co2Reduction.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="Tấn"
-                    icon={Leaf}
-                    color="green"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Giảm thải CO2", "Tấn", "co2Reduction", Leaf, "green")}
-                />
-                <MetricCard
-                    title="Cây trồng tương đương"
-                    value={kpi?.treesPlanted ? kpi.treesPlanted.toLocaleString('en-US', { maximumFractionDigits: 0 }) : "0"}
-                    unit="Cây"
-                    icon={Leaf}
-                    color="green"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Cây trồng tương đương", "Cây", "treesPlanted", Leaf, "green")}
-                />
-            </div>
+            ))}
 
             {selectedMetric && kpi && (
                 <MetricDetailModal

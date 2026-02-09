@@ -4,6 +4,10 @@ $ErrorActionPreference = "Stop"
 Write-Host "🚀 Starting Fusion-Shundao System..." -ForegroundColor Green
 
 # 1. Start Backend (Go)
+Write-Host "   + Building Backend..." -ForegroundColor Cyan
+go build -o fusion_test.exe ./src
+if ($LASTEXITCODE -ne 0) { Write-Error "Build Failed!"; exit 1 }
+
 Write-Host "   + Launching Backend (Go)..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {Write-Host '=== BACKEND (GO) ===' -ForegroundColor Yellow; ./fusion_test.exe}"
 

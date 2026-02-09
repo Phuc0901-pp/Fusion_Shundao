@@ -1,0 +1,40 @@
+{
+    "dashboard": {
+        "title": "Tổng Quan Hệ Thống",
+        "production": "Sản Xuất & Tài Chính",
+        "environment": "Lợi Ích Môi Trường",
+        "alerts": "Nhật Ký & Cảnh Báo",
+        "updating": "Đang cập nhật..."
+    },
+    "metrics": {
+        "dailyEnergy": "Sản lượng hôm nay",
+        "dailyIncome": "Doanh thu hôm nay",
+        "totalEnergy": "Tổng sản lượng",
+        "ratedPower": "Công suất định mức",
+        "gridSupply": "Từ lưới điện hôm nay",
+        "coalSaved": "Tiết kiệm than chuẩn",
+        "co2Reduction": "Giảm thải CO2",
+        "treesPlanted": "Cây trồng tương đương"
+    },
+    "units": {
+        "kWh": "kWh",
+        "MWh": "MWh",
+        "kW": "kW",
+        "VND": "VND",
+        "ton": "Tấn",
+        "tree": "Cây"
+    },
+    "status": {
+        "online": "Hoạt động",
+        "offline": "Mất kết nối",
+        "normal": "Hệ thống hoạt động bình thường"
+    },
+    "actions": {
+        "refresh": "Làm mới",
+        "retry": "Thử lại"
+    },
+    "errors": {
+        "loadFailed": "Không thể tải dữ liệu",
+        "sectionError": "Lỗi tải"
+    }
+}

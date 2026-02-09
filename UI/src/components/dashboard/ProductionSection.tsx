@@ -3,6 +3,7 @@ import { Zap, Activity, DollarSign, RefreshCw } from 'lucide-react';
 import { MetricCard } from '../widgets/MetricCard';
 import { MetricDetailModal } from '../modals/MetricDetailModal';
 import type { Site, KPI } from '../../types';
+import { formatCompactNumber } from '../../utils/formatters';
 
 interface ProductionSectionProps {
     kpi?: KPI;
@@ -31,60 +32,30 @@ export const ProductionSection: React.FC<ProductionSectionProps> = ({ kpi, sites
         })) || [];
     };
 
+    const metrics = [
+        { title: "Sản lượng hôm nay", value: kpi?.dailyEnergy ? formatCompactNumber(kpi.dailyEnergy) : "0", unit: "kWh", icon: Zap, color: "solar", field: "dailyEnergy" as keyof KPI },
+        { title: "Doanh thu hôm nay", value: kpi?.dailyIncome ? formatCompactNumber(kpi.dailyIncome) : "0", unit: "VND", icon: DollarSign, color: "green", field: "dailyIncome" as keyof KPI },
+        { title: "Tổng sản lượng", value: kpi?.totalEnergy ? formatCompactNumber(kpi.totalEnergy / 1000) : "0", unit: "MWh", icon: Activity, color: "blue", field: "totalEnergy" as keyof KPI },
+        { title: "Công suất định mức", value: kpi?.ratedPower ? formatCompactNumber(kpi.ratedPower) : "0", unit: "kW", icon: Zap, color: "slate", field: "ratedPower" as keyof KPI },
+        { title: "Lưới điện hôm nay", value: kpi?.gridSupplyToday ? formatCompactNumber(kpi.gridSupplyToday) : "0", unit: "kWh", icon: RefreshCw, color: "orange", field: "gridSupplyToday" as keyof KPI }
+    ];
+
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {metrics.map((metric, index) => (
                 <MetricCard
-                    title="Sản lượng hôm nay"
-                    value={kpi?.dailyEnergy ? kpi.dailyEnergy.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="kWh"
-                    icon={Zap}
-                    color="solar"
+                    key={metric.field}
+                    title={metric.title}
+                    value={metric.value}
+                    unit={metric.unit}
+                    icon={metric.icon}
+                    color={metric.color}
                     loading={isLoading}
                     variant="flat"
-                    onClick={() => handleCardClick("Sản lượng hôm nay", "kWh", "dailyEnergy", Zap, "solar")}
+                    delay={index}
+                    onClick={() => handleCardClick(metric.title, metric.unit, metric.field, metric.icon, metric.color)}
                 />
-                <MetricCard
-                    title="Doanh thu hôm nay"
-                    value={kpi?.dailyIncome ? kpi.dailyIncome.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="VND"
-                    icon={DollarSign}
-                    color="green"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Doanh thu hôm nay", "VND", "dailyIncome", DollarSign, "green")}
-                />
-                <MetricCard
-                    title="Tổng sản lượng"
-                    value={kpi?.totalEnergy ? (kpi.totalEnergy / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="MWh"
-                    icon={Activity}
-                    color="blue"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Tổng sản lượng", "MWh", "totalEnergy", Activity, "blue")}
-                />
-                <MetricCard
-                    title="Công suất định mức"
-                    value={kpi?.ratedPower ? kpi.ratedPower.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="kW"
-                    icon={Zap}
-                    color="slate"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Công suất định mức", "kW", "ratedPower", Zap, "slate")}
-                />
-                <MetricCard
-                    title="Từ lưới điện hôm nay"
-                    value={kpi?.gridSupplyToday ? kpi.gridSupplyToday.toLocaleString('en-US', { maximumFractionDigits: 3 }) : "0"}
-                    unit="kWh"
-                    icon={RefreshCw}
-                    color="orange"
-                    loading={isLoading}
-                    variant="flat"
-                    onClick={() => handleCardClick("Từ lưới điện hôm nay", "kWh", "gridSupplyToday", RefreshCw, "orange")}
-                />
-            </div>
+            ))}
 
             {selectedMetric && kpi && (
                 <MetricDetailModal

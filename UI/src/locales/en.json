@@ -1,0 +1,40 @@
+{
+    "dashboard": {
+        "title": "System Overview",
+        "production": "Production & Finance",
+        "environment": "Environmental Benefits",
+        "alerts": "Logs & Alerts",
+        "updating": "Updating..."
+    },
+    "metrics": {
+        "dailyEnergy": "Today's Production",
+        "dailyIncome": "Today's Revenue",
+        "totalEnergy": "Total Production",
+        "ratedPower": "Rated Power",
+        "gridSupply": "Grid Supply Today",
+        "coalSaved": "Standard Coal Saved",
+        "co2Reduction": "CO2 Reduction",
+        "treesPlanted": "Equivalent Trees Planted"
+    },
+    "units": {
+        "kWh": "kWh",
+        "MWh": "MWh",
+        "kW": "kW",
+        "VND": "VND",
+        "ton": "Ton",
+        "tree": "Trees"
+    },
+    "status": {
+        "online": "Online",
+        "offline": "Offline",
+        "normal": "System operating normally"
+    },
+    "actions": {
+        "refresh": "Refresh",
+        "retry": "Retry"
+    },
+    "errors": {
+        "loadFailed": "Failed to load data",
+        "sectionError": "Error loading"
+    }
+}

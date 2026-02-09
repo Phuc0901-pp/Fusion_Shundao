@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,15 +31,231 @@ type DashboardData struct {
 
 // ProductionDataPoint for daily production bar chart (per site)
 type ProductionDataPoint struct {
-	Date string `json:"date"` // Format: "01", "02", etc. (day of month)
+	Date string `json:"date"` // Format: "HH:mm"
 	// SHUNDAO 1
-	Site1DailyEnergy float64 `json:"site1DailyEnergy"` // kWh
-	Site1GridFeedIn  float64 `json:"site1GridFeedIn"`  // kWh
-	Site1Irradiation float64 `json:"site1Irradiation"` // MJ/m²
+	Site1Power      *float64 `json:"site1Power"`      // kW
+	Site1Irradiance *float64 `json:"site1Irradiance"` // W/m²
 	// SHUNDAO 2
-	Site2DailyEnergy float64 `json:"site2DailyEnergy"` // kWh
-	Site2GridFeedIn  float64 `json:"site2GridFeedIn"`  // kWh
-	Site2Irradiation float64 `json:"site2Irradiation"` // MJ/m²
+	Site2Power      *float64 `json:"site2Power"`      // kW
+	Site2Irradiance *float64 `json:"site2Irradiance"` // W/m²
+}
+
+// fetchProductionDataFromVM fetches 5-minute interval production data for today (per site)
+func fetchProductionDataFromVM() []ProductionDataPoint {
+	endpoint := "http://100.118.142.45:8428"
+	now := time.Now()
+	
+	// Start of TODAY (00:00)
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	end := now
+
+	// 1. Fetch RAW Instantaneous Data (step=5m = 300s)
+	// We use a map to store populated raw points
+	type RawPoint struct {
+		Date            string
+		Site1Power      float64
+		Site1Irradiance float64
+		Site2Power      float64
+		Site2Irradiance float64
+	}
+	
+	rawMap := make(map[string]*RawPoint)
+	getRaw := func(ts time.Time) *RawPoint {
+		key := ts.Format("15:04") // "HH:mm"
+		if _, ok := rawMap[key]; !ok {
+			rawMap[key] = &RawPoint{Date: key}
+		}
+		return rawMap[key]
+	}
+
+	// 1. Site 1 Power (kW)
+	fetchDailyRange(endpoint, `sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})`, start, end, 300, func(ts time.Time, val float64) {
+		getRaw(ts).Site1Power = val
+	})
+	// 2. Site 1 Irradiance (W/m²) - using total_irradiance_wm2
+	fetchDailyRange(endpoint, `avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})`, start, end, 300, func(ts time.Time, val float64) {
+		getRaw(ts).Site1Irradiance = val
+	})
+
+	// 3. Site 2 Power (kW)
+	fetchDailyRange(endpoint, `sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})`, start, end, 300, func(ts time.Time, val float64) {
+		getRaw(ts).Site2Power = val
+	})
+	// 4. Site 2 Irradiance (W/m²) - using total_irradiance_wm2
+	fetchDailyRange(endpoint, `avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})`, start, end, 300, func(ts time.Time, val float64) {
+		getRaw(ts).Site2Irradiance = val
+	})
+
+	// Process & Create Full 24h Result (5-minute intervals)
+	// 24 hours * 12 points/hour = 288 points
+	totalPoints := 24 * 12
+	result := make([]ProductionDataPoint, totalPoints)
+	
+	// Initialize time slots
+	slotTime := start
+	for i := 0; i < totalPoints; i++ {
+		h := slotTime.Format("15:04")
+		result[i] = ProductionDataPoint{Date: h} 
+		slotTime = slotTime.Add(5 * time.Minute)
+	}
+
+	// Helper to safely get raw values (return nil if missing)
+	getRawVal := func(key string) *RawPoint {
+		if p, ok := rawMap[key]; ok {
+			return p
+		}
+		return nil
+	}
+	
+	// Loop to fill result
+	// We only show data up to current time
+	
+	minutesSinceMidnight := now.Hour()*60 + now.Minute()
+	currentSlotIndex := minutesSinceMidnight / 5
+
+	for i := 0; i < totalPoints; i++ {
+		// If slot is in future (relative to now), skip (leave as nil)
+		if i > currentSlotIndex {
+			continue
+		}
+		
+		key := result[i].Date // "HH:mm"
+		curr := getRawVal(key)
+		
+		// If data exists, assign it. If not, it remains nil (gap in chart, which is correct for missing data)
+		if curr != nil {
+			// Helper to create float pointer
+			toPtr := func(v float64) *float64 { return &v }
+			
+			// For instantaneous values, we just take the value directly.
+			// No delta calculation needed.
+			
+			if curr.Site1Power > 0 { result[i].Site1Power = toPtr(curr.Site1Power) }
+			if curr.Site1Irradiance > 0 { result[i].Site1Irradiance = toPtr(curr.Site1Irradiance) }
+			
+			if curr.Site2Power > 0 { result[i].Site2Power = toPtr(curr.Site2Power) }
+			if curr.Site2Irradiance > 0 { result[i].Site2Irradiance = toPtr(curr.Site2Irradiance) }
+		}
+	}
+	return result
+}
+
+// MonthlyDataPoint for monthly production chart (max per day)
+type MonthlyDataPoint struct {
+	Date            string   `json:"date"` // Format: "09/02" (DD/MM)
+	Site1MaxPower   *float64 `json:"site1MaxPower"`
+	Site1MaxIrrad   *float64 `json:"site1MaxIrrad"`
+	Site2MaxPower   *float64 `json:"site2MaxPower"`
+	Site2MaxIrrad   *float64 `json:"site2MaxIrrad"`
+}
+
+// fetchMonthlyProductionData fetches daily max power and irradiance from Feb 9 to today
+func fetchMonthlyProductionData() []MonthlyDataPoint {
+	endpoint := "http://100.118.142.45:8428"
+	now := time.Now()
+	
+	// Start from Feb 9, 2026 (or adjust as needed)
+	startDate := time.Date(2026, 2, 9, 0, 0, 0, 0, time.Local)
+	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.Local)
+	
+	// Calculate number of days
+	numDays := int(endDate.Sub(startDate).Hours()/24) + 1
+	if numDays < 1 {
+		numDays = 1
+	}
+	if numDays > 31 {
+		numDays = 31 // Limit to 31 days
+	}
+	
+	result := make([]MonthlyDataPoint, numDays)
+	
+	// Initialize dates
+	for i := 0; i < numDays; i++ {
+		day := startDate.AddDate(0, 0, i)
+		result[i] = MonthlyDataPoint{
+			Date: day.Format("02/01"), // DD/MM
+		}
+	}
+	
+	// Helper to convert to pointer
+	toPtr := func(v float64) *float64 { return &v }
+	
+	// Fetch max power per day for Site 1
+	// Using max_over_time with 1d step
+	fetchMaxPerDay := func(query string, start, end time.Time, setter func(dayIndex int, val float64)) {
+		// Query: max_over_time(metric[1d])
+		// Step: 86400 (1 day)
+		u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=86400",
+			endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
+		
+		resp, err := http.Get(u)
+		if err != nil {
+			return
+		}
+		defer resp.Body.Close()
+		
+		body, _ := io.ReadAll(resp.Body)
+		
+		var res struct {
+			Data struct {
+				Result []struct {
+					Values [][]interface{} `json:"values"`
+				} `json:"result"`
+			} `json:"data"`
+		}
+		
+		if json.Unmarshal(body, &res) != nil {
+			return
+		}
+		
+		if len(res.Data.Result) == 0 {
+			return
+		}
+		
+		for _, v := range res.Data.Result[0].Values {
+			if len(v) >= 2 {
+				ts := time.Unix(int64(v[0].(float64)), 0)
+				dayIndex := int(ts.Sub(startDate).Hours() / 24)
+				if dayIndex < 0 || dayIndex >= numDays {
+					continue
+				}
+				valStr, _ := v[1].(string)
+				var val float64
+				fmt.Sscanf(valStr, "%f", &val)
+				setter(dayIndex, val)
+			}
+		}
+	}
+	
+	// Fetch Site 1 Max Power - use subquery syntax for max of sum
+	fetchMaxPerDay(
+		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})[1d:5m])`,
+		startDate, endDate,
+		func(i int, v float64) { if v > 0 { result[i].Site1MaxPower = toPtr(v) } },
+	)
+	
+	// Fetch Site 1 Max Irradiance
+	fetchMaxPerDay(
+		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})[1d:5m])`,
+		startDate, endDate,
+		func(i int, v float64) { if v > 0 { result[i].Site1MaxIrrad = toPtr(v) } },
+	)
+	
+	// Fetch Site 2 Max Power
+	fetchMaxPerDay(
+		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})[1d:5m])`,
+		startDate, endDate,
+		func(i int, v float64) { if v > 0 { result[i].Site2MaxPower = toPtr(v) } },
+	)
+	
+	// Fetch Site 2 Max Irradiance
+	fetchMaxPerDay(
+		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})[1d:5m])`,
+		startDate, endDate,
+		func(i int, v float64) { if v > 0 { result[i].Site2MaxIrrad = toPtr(v) } },
+	)
+	
+	return result
 }
 
 type ChartPoint struct {
@@ -82,6 +299,30 @@ type InverterNode struct {
 	Name         string       `json:"name"`
 	DeviceStatus string       `json:"deviceStatus"`
 	Strings      []StringData `json:"strings"`
+	// Power metrics
+	DcPowerKw      float64 `json:"dcPowerKw,omitempty"`
+	POutKw         float64 `json:"pOutKw,omitempty"`
+	RatedPowerKw   float64 `json:"ratedPowerKw,omitempty"`
+	PPeakTodayKw   float64 `json:"pPeakTodayKw,omitempty"`
+	PowerFactor    float64 `json:"powerFactor,omitempty"`
+	QOutKvar       float64 `json:"qOutKvar,omitempty"`
+	// Energy metrics
+	EDailyKwh float64 `json:"eDailyKwh,omitempty"`
+	ETotalKwh float64 `json:"eTotalKwh,omitempty"`
+	// Grid metrics
+	GridFreqHz float64 `json:"gridFreqHz,omitempty"`
+	GridVaV    float64 `json:"gridVaV,omitempty"`
+	GridVbV    float64 `json:"gridVbV,omitempty"`
+	GridVcV    float64 `json:"gridVcV,omitempty"`
+	GridIaA    float64 `json:"gridIaA,omitempty"`
+	GridIbA    float64 `json:"gridIbA,omitempty"`
+	GridIcA    float64 `json:"gridIcA,omitempty"`
+	// Temperature & other
+	InternalTempDegC       float64 `json:"internalTempDegC,omitempty"`
+	InsulationResistanceMO float64 `json:"insulationResistanceMO,omitempty"`
+	OutputMode             string  `json:"outputMode,omitempty"`
+	StartupTime            string  `json:"startupTime,omitempty"`
+	ShutdownTime           string  `json:"shutdownTime,omitempty"`
 }
 
 type StringData struct {
@@ -134,6 +375,7 @@ func StartServer() {
 	go startBackgroundUpdater()
 
 	http.HandleFunc("/api/dashboard", handleDashboard)
+	http.HandleFunc("/api/production-monthly", handleMonthlyProduction)
 
 	// Enable CORS for development
 	// corsHandler := corsMiddleware(http.DefaultServeMux)
@@ -141,7 +383,7 @@ func StartServer() {
 	port := ":5039"
 	fmt.Printf("🚀 Starting UI Backend Server on %s...\n", port)
 	if err := http.ListenAndServe(port, corsMiddleware(http.DefaultServeMux)); err != nil {
-		fmt.Printf("❌ Server failed: %v\n", err)
+		log.Fatalf("❌ Server failed: %v\n", err)
 	}
 }
 
@@ -177,6 +419,19 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 	// But to be safe, let's verify sorting here or in updateCache.
 	// We already sorted in fetchSitesFromOutput.
 
+	bytes, _ := json.Marshal(data)
+	w.Write(bytes)
+}
+
+// handleMonthlyProduction returns monthly production data (max per day)
+func handleMonthlyProduction(w http.ResponseWriter, r *http.Request) {
+	data := fetchMonthlyProductionData()
+	
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Content-Type", "application/json")
+	
 	bytes, _ := json.Marshal(data)
 	w.Write(bytes)
 }
@@ -393,20 +648,75 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 				slName := parts[1]
 				invName := parts[2]
 				
-				// Read Status from data.json (if exists)
+				// Read Status and other fields from data.json
 				status := "Unknown"
+				var startupTime, shutdownTime, outputMode string
+				var dcPower, pOut, ratedPower, pPeak, powerFactor, qOut float64
+				var eDaily, eTotal float64
+				var gridFreq, gridVa, gridVb, gridVc, gridIa, gridIb, gridIc float64
+				var temp, resistance float64
+				
 				dataBytes, err := os.ReadFile(filepath.Join(path, "data.json"))
 				if err == nil {
-					// Minimal struct to extract status
+					// Struct to extract all fields
 					var miniData struct {
 						Fields struct {
 							DeviceStatus string `json:"device_status"`
+							StartupTime  string `json:"startup_time"`
+							ShutdownTime string `json:"shutdown_time"`
+							OutputMode   string `json:"output_mode"`
+							
+							DcPowerKw    float64 `json:"dc_power_kw"`
+							POutKw       float64 `json:"p_out_kw"`
+							RatedPowerKw float64 `json:"rated_power_kw"`
+							PPeakTodayKw float64 `json:"p_peak_today_kw"`
+							PowerFactor  float64 `json:"power_factor"`
+							QOutKvar     float64 `json:"q_out_kvar"`
+							
+							EDailyKwh float64 `json:"edaily_kwh"`
+							ETotalKwh float64 `json:"etotal_kwh"`
+							
+							GridFreqHz float64 `json:"grid_freq_hz"`
+							GridVaV    float64 `json:"grid_va_v"`
+							GridVbV    float64 `json:"grid_vb_v"`
+							GridVcV    float64 `json:"grid_vc_v"`
+							GridIaA    float64 `json:"grid_ia_a"`
+							GridIbA    float64 `json:"grid_ib_a"`
+							GridIcA    float64 `json:"grid_ic_a"`
+							
+							InternalTempDegC       float64 `json:"internal_temp_degC"`
+							InsulationResistanceMO float64 `json:"insulation_resistance_MΩ"`
 						} `json:"fields"`
 					}
+					
 					if json.Unmarshal(dataBytes, &miniData) == nil {
 						if miniData.Fields.DeviceStatus != "" {
 							status = strings.TrimSpace(miniData.Fields.DeviceStatus)
 						}
+						startupTime = miniData.Fields.StartupTime
+						shutdownTime = miniData.Fields.ShutdownTime
+						outputMode = miniData.Fields.OutputMode
+						
+						dcPower = miniData.Fields.DcPowerKw
+						pOut = miniData.Fields.POutKw
+						ratedPower = miniData.Fields.RatedPowerKw
+						pPeak = miniData.Fields.PPeakTodayKw
+						powerFactor = miniData.Fields.PowerFactor
+						qOut = miniData.Fields.QOutKvar
+						
+						eDaily = miniData.Fields.EDailyKwh
+						eTotal = miniData.Fields.ETotalKwh
+						
+						gridFreq = miniData.Fields.GridFreqHz
+						gridVa = miniData.Fields.GridVaV
+						gridVb = miniData.Fields.GridVbV
+						gridVc = miniData.Fields.GridVcV
+						gridIa = miniData.Fields.GridIaA
+						gridIb = miniData.Fields.GridIbA
+						gridIc = miniData.Fields.GridIcA
+						
+						temp = miniData.Fields.InternalTempDegC
+						resistance = miniData.Fields.InsulationResistanceMO
 					}
 				}
 
@@ -424,6 +734,28 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 							ID:           invName,
 							Name:         cleanName,
 							DeviceStatus: status,
+							StartupTime:  startupTime,
+							ShutdownTime: shutdownTime,
+							OutputMode:   outputMode,
+							
+							DcPowerKw:      dcPower,
+							POutKw:         pOut,
+							RatedPowerKw:   ratedPower,
+							PPeakTodayKw:   pPeak,
+							PowerFactor:    powerFactor,
+							QOutKvar:       qOut,
+							EDailyKwh:      eDaily,
+							ETotalKwh:      eTotal,
+							GridFreqHz:     gridFreq,
+							GridVaV:        gridVa,
+							GridVbV:        gridVb,
+							GridVcV:        gridVc,
+							GridIaA:        gridIa,
+							GridIbA:        gridIb,
+							GridIcA:        gridIc,
+							InternalTempDegC:       temp,
+							InsulationResistanceMO: resistance,
+							
 							Strings:      make([]StringData, 0),
 						})
 						break
@@ -523,14 +855,14 @@ func splitName(s string) []string {
 
 func enrichSitesWithVMData(sites *[]SiteNode) {
 	endpoint := "http://100.118.142.45:8428"
-	// Query all PV strings data: shundao_inverter{name=~"pv.*"}
-	// Use last_over_time[1h] to get latest value in last hour if recent scrape failed
-	query := `last_over_time(shundao_inverter{name=~"pv.*"}[1h])`
+	// Query ALL inverter data: shundao_inverter (without name filter to get all fields)
+	// Use last_over_time[1h] to get latest value
+	query := `last_over_time(shundao_inverter[1h])`
 	url := fmt.Sprintf("%s/api/v1/query?query=%s", endpoint, url.QueryEscape(query))
 
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("Error querying VM for strings:", err)
+		fmt.Println("Error querying VM for inverter data:", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -547,44 +879,26 @@ func enrichSitesWithVMData(sites *[]SiteNode) {
 	json.Unmarshal(body, &result)
 
 	// Map data to structure
-	// Key: DeviceName -> Map[PV_ID] -> {v, a}
-	type PVVal struct {
-		V float64
-		A float64
-	}
-	deviceMap := make(map[string]map[int]*PVVal)
-
+	// Key: DeviceName -> FieldName -> Value
+	deviceDataMap := make(map[string]map[string]float64)
+	
 	for _, r := range result.Data.Result {
 		deviceName := r.Metric["device"] // e.g., "HF1_Inverter_1"
-		fieldName := r.Metric["name"]    // e.g., "pv01_volt_v"
+		fieldName := r.Metric["name"]    // e.g., "pv01_volt_v", "p_out_kw", etc.
 
 		if deviceName == "" || fieldName == "" {
 			continue
 		}
 
-		// Parse pv index
-		var pvIdx int
-		var unit string
-		// Format: pv01_volt_v or pv01_amp_a
-		if n, err := fmt.Sscanf(fieldName, "pv%d_%s", &pvIdx, &unit); err == nil && n == 2 {
-			if _, ok := deviceMap[deviceName]; !ok {
-				deviceMap[deviceName] = make(map[int]*PVVal)
-			}
-			if _, ok := deviceMap[deviceName][pvIdx]; !ok {
-				deviceMap[deviceName][pvIdx] = &PVVal{}
-			}
+		if _, ok := deviceDataMap[deviceName]; !ok {
+			deviceDataMap[deviceName] = make(map[string]float64)
+		}
 
-			// Get Value
-			if len(r.Value) >= 2 {
-				valStr, _ := r.Value[1].(string)
-				val, _ := strconv.ParseFloat(valStr, 64)
-
-				if strings.Contains(unit, "volt") {
-					deviceMap[deviceName][pvIdx].V = val
-				} else if strings.Contains(unit, "amp") {
-					deviceMap[deviceName][pvIdx].A = val
-				}
-			}
+		// Get Value
+		if len(r.Value) >= 2 {
+			valStr, _ := r.Value[1].(string)
+			val, _ := strconv.ParseFloat(valStr, 64)
+			deviceDataMap[deviceName][fieldName] = val
 		}
 	}
 
@@ -593,22 +907,58 @@ func enrichSitesWithVMData(sites *[]SiteNode) {
 		for j := range (*sites)[i].Loggers {
 			for k := range (*sites)[i].Loggers[j].Inverters {
 				inv := &(*sites)[i].Loggers[j].Inverters[k]
-				// Match device name (ID matches folder name which matches label)
-				if pvMap, ok := deviceMap[inv.ID]; ok {
+				
+				// Get data map for this inverter
+				if dataMap, ok := deviceDataMap[inv.ID]; ok {
+					// 1. Populate Strings
 					stringsData := make([]StringData, 0)
 					for idx := 1; idx <= 24; idx++ {
-						if val, exists := pvMap[idx]; exists {
-							// Always show string if data exists in VM, even if 0 (night time)
+						vKey := fmt.Sprintf("pv%02d_volt_v", idx)
+						aKey := fmt.Sprintf("pv%02d_amp_a", idx)
+						
+						v, hasV := dataMap[vKey]
+						a, hasA := dataMap[aKey]
+						
+						if hasV || hasA {
 							stringsData = append(stringsData, StringData{
 								ID:      fmt.Sprintf("PV%02d", idx),
-								Voltage: val.V,
-								Current: val.A,
+								Voltage: v,
+								Current: a,
 							})
 						}
 					}
 					inv.Strings = stringsData
+
+					// 2. Populate Inverter Metrics
+					// 2. Populate Inverter Metrics (Only overwrite if key exists in VM response)
+					if v, ok := dataMap["dc_power_kw"]; ok { inv.DcPowerKw = v }
+					if v, ok := dataMap["p_out_kw"]; ok { inv.POutKw = v }
+					if v, ok := dataMap["rated_power_kw"]; ok { inv.RatedPowerKw = v }
+					if v, ok := dataMap["p_peak_today_kw"]; ok { inv.PPeakTodayKw = v }
+					if v, ok := dataMap["power_factor"]; ok { inv.PowerFactor = v }
+					if v, ok := dataMap["q_out_kvar"]; ok { inv.QOutKvar = v }
+					
+					if v, ok := dataMap["edaily_kwh"]; ok { inv.EDailyKwh = v }
+					if v, ok := dataMap["etotal_kwh"]; ok { inv.ETotalKwh = v }
+					
+					if v, ok := dataMap["grid_freq_hz"]; ok { inv.GridFreqHz = v }
+					if v, ok := dataMap["grid_va_v"]; ok { inv.GridVaV = v }
+					if v, ok := dataMap["grid_vb_v"]; ok { inv.GridVbV = v }
+					if v, ok := dataMap["grid_vc_v"]; ok { inv.GridVcV = v }
+					if v, ok := dataMap["grid_ia_a"]; ok { inv.GridIaA = v }
+					if v, ok := dataMap["grid_ib_a"]; ok { inv.GridIbA = v }
+					if v, ok := dataMap["grid_ic_a"]; ok { inv.GridIcA = v }
+					
+					if v, ok := dataMap["internal_temp_degC"]; ok { inv.InternalTempDegC = v }
+					
+					// Try both likely keys for resistance due to special char handling
+					if v, ok := dataMap["insulation_resistance_MΩ"]; ok { 
+						inv.InsulationResistanceMO = v 
+					} else if v, ok := dataMap["insulation_resistance_MO"]; ok {
+						inv.InsulationResistanceMO = v
+					}
+					
 				} else {
-					// Ensure not nil even if no data found in VM
 					if inv.Strings == nil {
 						inv.Strings = make([]StringData, 0)
 					}
@@ -788,64 +1138,7 @@ func queryByLabel(endpoint, query string) map[string]float64 {
 	return results
 }
 
-// fetchProductionDataFromVM fetches daily production data for bar chart (per site)
-func fetchProductionDataFromVM() []ProductionDataPoint {
-	endpoint := "http://100.118.142.45:8428"
-	now := time.Now()
-	
-	// Start of current month
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-	end := now
 
-	pointMap := make(map[string]*ProductionDataPoint)
-	
-	// Helper to ensure point exists
-	getPoint := func(ts time.Time) *ProductionDataPoint {
-		dateStr := ts.Format("02")
-		if _, ok := pointMap[dateStr]; !ok {
-			pointMap[dateStr] = &ProductionDataPoint{Date: dateStr}
-		}
-		return pointMap[dateStr]
-	}
-
-	// 1. Site 1 Energy
-	fetchDailyRange(endpoint, `shundao_plant{name="daily_energy", site_name="SHUNDAO_1"}`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site1DailyEnergy = val
-	})
-	// 2. Site 1 Grid
-	fetchDailyRange(endpoint, `shundao_plant{name="daily_ongrid_energy", site_name="SHUNDAO_1"}`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site1GridFeedIn = val
-	})
-	// 3. Site 1 Irradiation
-	fetchDailyRange(endpoint, `avg(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_1"})`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site1Irradiation = val
-	})
-
-	// 4. Site 2 Energy
-	fetchDailyRange(endpoint, `shundao_plant{name="daily_energy", site_name="SHUNDAO_2"}`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site2DailyEnergy = val
-	})
-	// 5. Site 2 Grid
-	fetchDailyRange(endpoint, `shundao_plant{name="daily_ongrid_energy", site_name="SHUNDAO_2"}`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site2GridFeedIn = val
-	})
-	// 6. Site 2 Irradiation
-	fetchDailyRange(endpoint, `avg(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_2"})`, start, end, func(ts time.Time, val float64) {
-		getPoint(ts).Site2Irradiation = val
-	})
-
-	// Convert map to slice
-	result := make([]ProductionDataPoint, 0, len(pointMap))
-	for _, v := range pointMap {
-		result = append(result, *v)
-	}
-	
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Date < result[j].Date
-	})
-	
-	return result
-}
 
 // deepCopySites creates a deep copy of the sites slice to avoid race conditions
 func deepCopySites(src []SiteNode) []SiteNode {
@@ -867,10 +1160,10 @@ func deepCopySites(src []SiteNode) []SiteNode {
 }
 
 // fetchDailyRange fetches time-series data and calls callback for each point
-func fetchDailyRange(endpoint, query string, start, end time.Time, callback func(ts time.Time, val float64)) {
-	// Step = 1 day (86400 seconds)
-	u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=86400",
-		endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
+func fetchDailyRange(endpoint, query string, start, end time.Time, step int, callback func(ts time.Time, val float64)) {
+	// Step defined by caller (e.g., 3600 for 1h, 86400 for 1d)
+	u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=%d",
+		endpoint, url.QueryEscape(query), start.Unix(), end.Unix(), step)
 	
 	resp, err := http.Get(u)
 	if err != nil {

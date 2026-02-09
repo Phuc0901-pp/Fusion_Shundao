@@ -48,6 +48,30 @@ export interface Inverter {
     name: string;
     deviceStatus: string;
     strings: StringData[];
+    // Power metrics
+    dcPowerKw?: number;
+    pOutKw?: number;
+    ratedPowerKw?: number;
+    pPeakTodayKw?: number;
+    powerFactor?: number;
+    qOutKvar?: number;
+    // Energy metrics
+    eDailyKwh?: number;
+    eTotalKwh?: number;
+    // Grid metrics
+    gridFreqHz?: number;
+    gridVaV?: number;
+    gridVbV?: number;
+    gridVcV?: number;
+    gridIaA?: number;
+    gridIbA?: number;
+    gridIcA?: number;
+    // Temperature & other
+    internalTempDegC?: number;
+    insulationResistanceMO?: number;
+    outputMode?: string;
+    startupTime?: string;
+    shutdownTime?: string;
 }
 
 export interface SmartLogger {

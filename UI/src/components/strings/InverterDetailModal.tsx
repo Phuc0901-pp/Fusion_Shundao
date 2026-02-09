@@ -20,11 +20,6 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = ({ isOpen
     };
 
     // Derived Metrics
-    const activeStrings = inverter.strings.filter(s => s.current > 0 && s.voltage > 0);
-    const totalPower = activeStrings.reduce((sum, s) => sum + (s.current * s.voltage), 0);
-    const avgVoltage = activeStrings.length > 0
-        ? activeStrings.reduce((sum, s) => sum + s.voltage, 0) / activeStrings.length
-        : 0;
 
     return (
         <div
@@ -49,27 +44,106 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = ({ isOpen
                     </button>
                 </div>
 
-                {/* Dashboard Stats */}
-                <div className="grid grid-cols-3 gap-4 p-6 bg-white shrink-0 border-b border-slate-100">
-                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center">
-                        <span className="text-slate-500 text-xs uppercase font-semibold mb-1">Điện Áp TB</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-emerald-700 tabular-nums">{(avgVoltage / 1000).toFixed(2)}</span>
-                            <span className="text-xs text-emerald-600 font-medium">kV</span>
+                {/* Inverter Details List */}
+                <div className="p-6 bg-white shrink-0 border-b border-slate-100 overflow-y-auto max-h-[50vh]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+
+                        {/* Column 1: Status & Power */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Trạng thái bộ biến tần</span>
+                                <span className={`font-medium ${inverter.deviceStatus === 'Grid connected' ? 'text-green-600' : 'text-slate-700'}`}>
+                                    {inverter.deviceStatus || "Không xác định"}
+                                </span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Công suất thuần</span>
+                                <span className="font-medium text-slate-700">{inverter.pOutKw?.toFixed(3) || "0"} kW</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Hệ số công suất</span>
+                                <span className="font-medium text-slate-700">{inverter.powerFactor?.toFixed(3) || "1.000"}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Dòng điện lưới pha A</span>
+                                <span className="font-medium text-slate-700">{inverter.gridIaA?.toFixed(3) || "0"} A</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Điện áp pha A</span>
+                                <span className="font-medium text-slate-700">{inverter.gridVaV?.toFixed(1) || "0"} V</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Thời gian khởi động</span>
+                                <span className="font-medium text-slate-700">{inverter.startupTime || "--"}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Điện trở cách điện</span>
+                                <span className="font-medium text-slate-700">{inverter.insulationResistanceMO?.toFixed(3) || "0"} MΩ</span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center">
-                        <span className="text-slate-500 text-xs uppercase font-semibold mb-1">Tổng Công Suất</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-blue-700 tabular-nums">{(totalPower / 1000).toFixed(1)}</span>
-                            <span className="text-xs text-blue-600 font-medium">kW</span>
+
+                        {/* Column 2: Energy & Output */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Năng lượng hàng ngày</span>
+                                <span className="font-medium text-slate-700">{inverter.eDailyKwh?.toFixed(2) || "0"} kWh</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Công suất vô công</span>
+                                <span className="font-medium text-slate-700">{inverter.qOutKvar?.toFixed(3) || "0"} kvar</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Tần số lưới điện</span>
+                                <span className="font-medium text-slate-700">{inverter.gridFreqHz?.toFixed(2) || "50.00"} Hz</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Dòng điện lưới pha B</span>
+                                <span className="font-medium text-slate-700">{inverter.gridIbA?.toFixed(3) || "0"} A</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Điện áp pha B</span>
+                                <span className="font-medium text-slate-700">{inverter.gridVbV?.toFixed(1) || "0"} V</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Thời gian tắt</span>
+                                <span className="font-medium text-slate-700">{inverter.shutdownTime || "--"}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Hiệu suất DC/AC</span>
+                                <span className="font-medium text-slate-700">{inverter.pOutKw && inverter.dcPowerKw ? ((inverter.pOutKw / inverter.dcPowerKw) * 100).toFixed(2) : 0}%</span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center">
-                        <span className="text-slate-500 text-xs uppercase font-semibold mb-1">Số Chuỗi</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-slate-700 tabular-nums">{inverter.strings.length}</span>
-                            <span className="text-xs text-slate-500 font-medium">Str</span>
+
+                        {/* Column 3: Total & Info */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Tổng sản lượng</span>
+                                <span className="font-medium text-slate-700">{(inverter.eTotalKwh || 0).toLocaleString()} kWh</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Công suất định mức</span>
+                                <span className="font-medium text-slate-700">{inverter.ratedPowerKw?.toFixed(3) || "0"} kW</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Chế độ đầu ra</span>
+                                <span className="font-medium text-slate-700">{inverter.outputMode || "3 pha 4 dây"}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Dòng điện lưới pha C</span>
+                                <span className="font-medium text-slate-700">{inverter.gridIcA?.toFixed(3) || "0"} A</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Điện áp pha C</span>
+                                <span className="font-medium text-slate-700">{inverter.gridVcV?.toFixed(1) || "0"} V</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Nhiệt độ bên trong</span>
+                                <span className="font-medium text-slate-700">{inverter.internalTempDegC?.toFixed(1) || "0"} °C</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                                <span className="text-slate-500">Số chuỗi PV</span>
+                                <span className="font-medium text-slate-700">{inverter.strings.length}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
