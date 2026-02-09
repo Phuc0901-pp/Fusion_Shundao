@@ -1,5 +1,6 @@
 # Exe files
-*.exe
+# Exe files
+# *.exe (User requested to push exe)
 *.exe~
 *.dll
 *.so
