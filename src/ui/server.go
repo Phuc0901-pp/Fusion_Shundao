@@ -8,20 +8,37 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 // DashboardData structure matching frontend needs
 type DashboardData struct {
-	Alerts    []AlertMessage `json:"alerts"`
-	Sites     []SiteNode     `json:"sites"`
-	KPI       KPIData        `json:"kpi"`
-	Sensors   []SensorData   `json:"sensors"`
-	Meters    []MeterData    `json:"meters"`
-	ChartData []ChartPoint   `json:"chartData"`
-	SiteData  SiteDataMap    `json:"siteData"`
+	Alerts         []AlertMessage        `json:"alerts"`
+	Sites          []SiteNode            `json:"sites"`
+	KPI            KPIData               `json:"kpi"`
+	Sensors        []SensorData          `json:"sensors"`
+	Meters         []MeterData           `json:"meters"`
+	ChartData      []ChartPoint          `json:"chartData"`
+	SiteData       SiteDataMap           `json:"siteData"`
+	ProductionData []ProductionDataPoint `json:"productionData"`
+}
+
+// ProductionDataPoint for daily production bar chart (per site)
+type ProductionDataPoint struct {
+	Date string `json:"date"` // Format: "01", "02", etc. (day of month)
+	// SHUNDAO 1
+	Site1DailyEnergy float64 `json:"site1DailyEnergy"` // kWh
+	Site1GridFeedIn  float64 `json:"site1GridFeedIn"`  // kWh
+	Site1Irradiation float64 `json:"site1Irradiation"` // MJ/m²
+	// SHUNDAO 2
+	Site2DailyEnergy float64 `json:"site2DailyEnergy"` // kWh
+	Site2GridFeedIn  float64 `json:"site2GridFeedIn"`  // kWh
+	Site2Irradiation float64 `json:"site2Irradiation"` // MJ/m²
 }
 
 type ChartPoint struct {
@@ -50,18 +67,21 @@ type SiteNode struct {
 	ID      string       `json:"id"`
 	Name    string       `json:"name"`
 	Loggers []LoggerNode `json:"loggers"`
+	KPI     KPIData      `json:"kpi"`
 }
 
 type LoggerNode struct {
 	ID        string         `json:"id"`
 	Name      string         `json:"name"`
 	Inverters []InverterNode `json:"inverters"`
+	KPI       KPIData        `json:"kpi"`
 }
 
 type InverterNode struct {
-	ID      string       `json:"id"`
-	Name    string       `json:"name"`
-	Strings []StringData `json:"strings"`
+	ID           string       `json:"id"`
+	Name         string       `json:"name"`
+	DeviceStatus string       `json:"deviceStatus"`
+	Strings      []StringData `json:"strings"`
 }
 
 type StringData struct {
@@ -100,8 +120,19 @@ type MeterData struct {
 	PowerFactor float64 `json:"powerFactor"`
 }
 
+// Cache Mechanism
+var (
+	apiCache      DashboardData
+	cacheMutex    sync.RWMutex
+	baseSites     []SiteNode
+	baseSitesLock sync.RWMutex
+)
+
 // StartServer starts the API server
 func StartServer() {
+	// Start background data aggregator
+	go startBackgroundUpdater()
+
 	http.HandleFunc("/api/dashboard", handleDashboard)
 
 	// Enable CORS for development
@@ -130,37 +161,117 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func handleDashboard(w http.ResponseWriter, r *http.Request) {
-	// 1. Fetch KPI from VM (using correct field names)
+	cacheMutex.RLock()
+	data := apiCache
+	cacheMutex.RUnlock()
+
+	// Disable Caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Create a new slice to avoid modifying the cached data
+	// Sort Loggers and Inverters ON THE FLY to ensure it's always sorted
+	// (Deep copy or just sort the top level if needed, but here we invoke sorting in the updateCache usually)
+	// But to be safe, let's verify sorting here or in updateCache.
+	// We already sorted in fetchSitesFromOutput.
+
+	bytes, _ := json.Marshal(data)
+	w.Write(bytes)
+}
+
+func startBackgroundUpdater() {
+	// Initial population
+	fmt.Println("⏳ Initializing site structure (Disk Scan)...")
+	scanSitesStructure()
+	fmt.Println("⏳ Initializing metrics (VM Fetch)...")
+	updateMetrics()
+	fmt.Println("✅ Background updater started.")
+
+	// Metric Loop (5s)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for range ticker.C {
+			updateMetrics()
+		}
+	}()
+
+	// Structure Loop (60s) for detecting new devices/files
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		for range ticker.C {
+			scanSitesStructure()
+		}
+	}()
+}
+
+func scanSitesStructure() {
+	// Scan output dir manually to build tree STRUCTURE only
+	// This is I/O intensive, so run less frequently
+	sites := fetchSitesFromOutput("output")
+	
+	baseSitesLock.Lock()
+	baseSites = sites
+	baseSitesLock.Unlock()
+}
+
+func updateMetrics() {
+	// 1. Fetch KPI from VM (Global)
 	kpi := fetchKPIFromVM()
 
-	// 2. Fetch Sites Tree from Output Directory (Structure Only)
-	sites := fetchSitesFromOutput("output")
+	// 2. Clone Sites from Base (Deep Copy to avoid race conditions)
+	baseSitesLock.RLock()
+	sites := deepCopySites(baseSites)
+	baseSitesLock.RUnlock()
 
 	// 3. Enrich Sites with Real-time Data from VM (Power, Strings, Status)
 	enrichSitesWithVMData(&sites)
+	
+	// 4. Enrich Sites with KPI Data (Breakdown)
+	enrichSitesWithKPI(&sites)
 
-	// 4. Fetch Chart Data from VM
+	// 5. Fetch Chart Data from VM
 	chartData := fetchChartDataFromVM()
 	siteData := SiteDataMap{
 		All:   chartData,
-		SiteA: []ChartPoint{}, // TODO: breakdown by site
+		SiteA: []ChartPoint{},
 		SiteB: []ChartPoint{},
 	}
 
-	data := DashboardData{
+	// 6. Fallback: Aggregate KPI from Sites if VM query returned 0
+	if kpi.DailyEnergy == 0 || kpi.RatedPower == 0 {
+		for _, site := range sites {
+			kpi.DailyEnergy += site.KPI.DailyEnergy
+			kpi.DailyIncome += site.KPI.DailyIncome
+			kpi.TotalEnergy += site.KPI.TotalEnergy
+			kpi.RatedPower += site.KPI.RatedPower
+			kpi.GridSupplyToday += site.KPI.GridSupplyToday
+			kpi.StandardCoalSaved += site.KPI.StandardCoalSaved
+			kpi.CO2Reduction += site.KPI.CO2Reduction
+			kpi.TreesPlanted += site.KPI.TreesPlanted
+		}
+	}
+
+	// 7. Fetch Production Data for bar chart
+	productionData := fetchProductionDataFromVM()
+
+	newData := DashboardData{
 		Alerts: []AlertMessage{
 			{ID: "1", Timestamp: time.Now().UnixMilli(), Level: "info", Message: "System Online (VM Backend)", Source: "Backend"},
 		},
-		Sites:     sites,
-		KPI:       kpi,
-		Sensors:   []SensorData{},
-		Meters:    []MeterData{},
-		ChartData: chartData,
-		SiteData:  siteData,
+		Sites:          sites,
+		KPI:            kpi,
+		Sensors:        []SensorData{},
+		Meters:         []MeterData{},
+		ChartData:      chartData,
+		SiteData:       siteData,
+		ProductionData: productionData,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	cacheMutex.Lock()
+	apiCache = newData
+	cacheMutex.Unlock()
 }
 
 func fetchKPIFromVM() KPIData {
@@ -174,6 +285,7 @@ func fetchKPIFromVM() KPIData {
 		TotalEnergy:       querySum(endpoint, `last_over_time(shundao_plant{name="cumulative_energy"}[1h])`),
 		DailyIncome:       querySum(endpoint, `last_over_time(shundao_plant{name="daily_income"}[1h])`),
 		RatedPower:        querySum(endpoint, `last_over_time(shundao_inverter{name="rated_power_kw"}[1h])`),
+		GridSupplyToday:   querySum(endpoint, `last_over_time(shundao_plant{name="daily_ongrid_energy"}[1h])`),
 		CO2Reduction:      querySum(endpoint, `last_over_time(shundao_plant{name="co2_reduction"}[1h])`),
 		TreesPlanted:      querySum(endpoint, `last_over_time(shundao_plant{name="equivalent_trees"}[1h])`),
 		StandardCoalSaved: querySum(endpoint, `last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`),
@@ -264,9 +376,14 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 			// Detect SmartLogger (Station)
 			if len(parts) == 2 && (strings.Contains(parts[1], "Smartlogger") || strings.Contains(parts[1], "Station")) {
 				slName := parts[1]
+				// Normalize Name
+				name := strings.ReplaceAll(slName, "_", " ")
+				name = strings.ReplaceAll(name, "SmartloggerStation", "Smartlogger Station") // Fix inconsistent naming
+				name = strings.ReplaceAll(name, "Sattion", "Station") // Fix typo in folder name
+				
 				sitesMap[siteName].Loggers = append(sitesMap[siteName].Loggers, LoggerNode{
 					ID:        slName,
-					Name:      strings.ReplaceAll(slName, "_", " "),
+					Name:      name,
 					Inverters: make([]InverterNode, 0),
 				})
 			}
@@ -275,14 +392,39 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 			if len(parts) == 3 && strings.Contains(parts[2], "Inverter") {
 				slName := parts[1]
 				invName := parts[2]
+				
+				// Read Status from data.json (if exists)
+				status := "Unknown"
+				dataBytes, err := os.ReadFile(filepath.Join(path, "data.json"))
+				if err == nil {
+					// Minimal struct to extract status
+					var miniData struct {
+						Fields struct {
+							DeviceStatus string `json:"device_status"`
+						} `json:"fields"`
+					}
+					if json.Unmarshal(dataBytes, &miniData) == nil {
+						if miniData.Fields.DeviceStatus != "" {
+							status = strings.TrimSpace(miniData.Fields.DeviceStatus)
+						}
+					}
+				}
 
 				// Find correct logger
 				for i := range sitesMap[siteName].Loggers {
 					if sitesMap[siteName].Loggers[i].ID == slName {
+						// Clean Inverter Name (Remove HFxx)
+						cleanName := strings.ReplaceAll(invName, "_", " ")
+						// Regex to remove "HF" followed by digits
+						re := regexp.MustCompile(`HF\d+\s*`)
+						cleanName = re.ReplaceAllString(cleanName, "")
+						cleanName = strings.TrimSpace(cleanName)
+
 						sitesMap[siteName].Loggers[i].Inverters = append(sitesMap[siteName].Loggers[i].Inverters, InverterNode{
-							ID:      invName,
-							Name:    strings.ReplaceAll(invName, "_", " "),
-							Strings: make([]StringData, 0),
+							ID:           invName,
+							Name:         cleanName,
+							DeviceStatus: status,
+							Strings:      make([]StringData, 0),
 						})
 						break
 					}
@@ -297,9 +439,86 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 	// Convert map to slice
 	sites := make([]SiteNode, 0)
 	for _, s := range sitesMap {
+		// Sort Loggers
+		sort.Slice(s.Loggers, func(i, j int) bool {
+			return naturalLess(s.Loggers[i].Name, s.Loggers[j].Name)
+		})
+		// Sort Inverters in each Logger
+		for k := range s.Loggers {
+			sort.Slice(s.Loggers[k].Inverters, func(i, j int) bool {
+				return naturalLess(s.Loggers[k].Inverters[i].Name, s.Loggers[k].Inverters[j].Name)
+			})
+		}
 		sites = append(sites, *s)
 	}
+
+	// Sort Sites
+	sort.Slice(sites, func(i, j int) bool {
+		return naturalLess(sites[i].Name, sites[j].Name)
+	})
+
 	return sites
+}
+
+// naturalLess compares two strings with embedded numbers naturally
+func naturalLess(s1, s2 string) bool {
+    // Split into parts (text vs numbers)
+    parts1 := splitName(s1)
+    parts2 := splitName(s2)
+    
+    n := len(parts1)
+    if len(parts2) < n {
+        n = len(parts2)
+    }
+    
+    for i := 0; i < n; i++ {
+        // Check if both are numbers
+        num1, err1 := strconv.Atoi(parts1[i])
+        num2, err2 := strconv.Atoi(parts2[i])
+        
+        if err1 == nil && err2 == nil {
+            if num1 != num2 {
+                return num1 < num2
+            }
+        } else {
+			// Case insensitive string comparison
+			str1 := strings.ToLower(parts1[i])
+			str2 := strings.ToLower(parts2[i])
+            if str1 != str2 {
+                return str1 < str2
+            }
+        }
+    }
+    
+    return len(parts1) < len(parts2)
+}
+
+func splitName(s string) []string {
+    var parts []string
+    var current string
+    var isDigit bool
+    
+    for _, r := range s {
+        if r >= '0' && r <= '9' {
+            if !isDigit && current != "" {
+                parts = append(parts, current)
+                current = ""
+            }
+            isDigit = true
+            current += string(r)
+        } else {
+            if isDigit && current != "" {
+                parts = append(parts, current)
+                current = ""
+            }
+            isDigit = false
+            current += string(r)
+        }
+    }
+    if current != "" {
+        parts = append(parts, current)
+    }
+    return parts
 }
 
 func enrichSitesWithVMData(sites *[]SiteNode) {
@@ -445,4 +664,245 @@ func querySum(endpoint, query string) float64 {
 		}
 	}
 	return 0
+}
+
+func enrichSitesWithKPI(sites *[]SiteNode) {
+	endpoint := "http://100.118.142.45:8428"
+	
+	// Fetch all data points for relevant metrics, grouped by 'device' (SmartLogger name)
+	metrics := map[string]string{
+		"dailyEnergy":       `last_over_time(shundao_plant{name="daily_energy"}[1h])`,
+		"totalEnergy":       `last_over_time(shundao_plant{name="cumulative_energy"}[1h])`,
+		"dailyIncome":       `last_over_time(shundao_plant{name="daily_income"}[1h])`,
+		"co2Reduction":      `last_over_time(shundao_plant{name="co2_reduction"}[1h])`,
+		"treesPlanted":      `last_over_time(shundao_plant{name="equivalent_trees"}[1h])`,
+		"standardCoalSaved": `last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`,
+		"gridSupplyToday":   `last_over_time(shundao_plant{name="daily_ongrid_energy"}[1h])`,
+		"ratedPower":        `last_over_time(shundao_inverter{name="rated_power_kw"}[1h])`,
+	}
+
+	// Store results: DeviceID -> Metric -> Value
+	dataMap := make(map[string]map[string]float64)
+
+	for header, query := range metrics {
+		vals := queryByLabel(endpoint, query) // Returns map[deviceID]value
+		for devID, val := range vals {
+			if _, ok := dataMap[devID]; !ok {
+				dataMap[devID] = make(map[string]float64)
+			}
+			dataMap[devID][header] += val
+		}
+	}
+
+	// Distribute to Sites
+	for i := range *sites {
+		site := &(*sites)[i]
+		siteKPI := KPIData{}
+
+		// 1. Assign Site-Level KPI from Plant Metrics (using Site ID/Name)
+		var siteMetrics map[string]float64
+		var ok bool
+		
+		if siteMetrics, ok = dataMap[site.ID]; !ok {
+			siteMetrics, ok = dataMap[site.Name]
+		}
+		
+		if ok {
+			siteKPI.DailyEnergy = siteMetrics["dailyEnergy"]
+			siteKPI.TotalEnergy = siteMetrics["totalEnergy"]
+			siteKPI.DailyIncome = siteMetrics["dailyIncome"]
+			siteKPI.CO2Reduction = siteMetrics["co2Reduction"]
+			siteKPI.TreesPlanted = siteMetrics["treesPlanted"]
+			siteKPI.StandardCoalSaved = siteMetrics["standardCoalSaved"]
+			siteKPI.GridSupplyToday = siteMetrics["gridSupplyToday"]
+		}
+
+		// 2. Aggregate Rated Power from Inverters
+		var siteRatedPower float64
+		
+		for j := range site.Loggers {
+			logger := &site.Loggers[j]
+			loggerKPI := KPIData{}
+			
+			var loggerRatedPower float64
+			for _, inv := range logger.Inverters {
+				if m, ok := dataMap[inv.ID]; ok {
+					loggerRatedPower += m["ratedPower"]
+				}
+			}
+			loggerKPI.RatedPower = loggerRatedPower
+			logger.KPI = loggerKPI
+			
+			siteRatedPower += loggerRatedPower
+		}
+		
+		siteKPI.RatedPower = siteRatedPower
+		site.KPI = siteKPI
+	}
+}
+
+func queryByLabel(endpoint, query string) map[string]float64 {
+	results := make(map[string]float64)
+	url := fmt.Sprintf("%s/api/v1/query?query=%s", endpoint, url.QueryEscape(query))
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		return results
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result struct {
+		Data struct {
+			Result []struct {
+				Metric map[string]string `json:"metric"`
+				Value  []interface{}     `json:"value"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return results
+	}
+
+	for _, r := range result.Data.Result {
+		// Identify ID. Priority: 'device' -> 'station' -> 'site_name' -> 'id'
+		id := r.Metric["device"]
+		if id == "" {
+			id = r.Metric["station"]
+		}
+		if id == "" {
+			id = r.Metric["site_name"]
+		}
+		if id == "" {
+			id = r.Metric["id"]
+		}
+		
+		if id != "" && len(r.Value) > 1 {
+			valStr, _ := r.Value[1].(string)
+			var val float64
+			fmt.Sscanf(valStr, "%f", &val)
+			results[id] = val
+		}
+	}
+	return results
+}
+
+// fetchProductionDataFromVM fetches daily production data for bar chart (per site)
+func fetchProductionDataFromVM() []ProductionDataPoint {
+	endpoint := "http://100.118.142.45:8428"
+	now := time.Now()
+	
+	// Start of current month
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+	end := now
+
+	pointMap := make(map[string]*ProductionDataPoint)
+	
+	// Helper to ensure point exists
+	getPoint := func(ts time.Time) *ProductionDataPoint {
+		dateStr := ts.Format("02")
+		if _, ok := pointMap[dateStr]; !ok {
+			pointMap[dateStr] = &ProductionDataPoint{Date: dateStr}
+		}
+		return pointMap[dateStr]
+	}
+
+	// 1. Site 1 Energy
+	fetchDailyRange(endpoint, `shundao_plant{name="daily_energy", site_name="SHUNDAO_1"}`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site1DailyEnergy = val
+	})
+	// 2. Site 1 Grid
+	fetchDailyRange(endpoint, `shundao_plant{name="daily_ongrid_energy", site_name="SHUNDAO_1"}`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site1GridFeedIn = val
+	})
+	// 3. Site 1 Irradiation
+	fetchDailyRange(endpoint, `avg(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_1"})`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site1Irradiation = val
+	})
+
+	// 4. Site 2 Energy
+	fetchDailyRange(endpoint, `shundao_plant{name="daily_energy", site_name="SHUNDAO_2"}`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site2DailyEnergy = val
+	})
+	// 5. Site 2 Grid
+	fetchDailyRange(endpoint, `shundao_plant{name="daily_ongrid_energy", site_name="SHUNDAO_2"}`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site2GridFeedIn = val
+	})
+	// 6. Site 2 Irradiation
+	fetchDailyRange(endpoint, `avg(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_2"})`, start, end, func(ts time.Time, val float64) {
+		getPoint(ts).Site2Irradiation = val
+	})
+
+	// Convert map to slice
+	result := make([]ProductionDataPoint, 0, len(pointMap))
+	for _, v := range pointMap {
+		result = append(result, *v)
+	}
+	
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Date < result[j].Date
+	})
+	
+	return result
+}
+
+// deepCopySites creates a deep copy of the sites slice to avoid race conditions
+func deepCopySites(src []SiteNode) []SiteNode {
+	dst := make([]SiteNode, len(src))
+	for i, s := range src {
+		dst[i] = s
+		// Deep copy Loggers
+		dst[i].Loggers = make([]LoggerNode, len(s.Loggers))
+		for j, l := range s.Loggers {
+			dst[i].Loggers[j] = l
+			// Deep copy Inverters
+			dst[i].Loggers[j].Inverters = make([]InverterNode, len(s.Loggers[j].Inverters))
+			copy(dst[i].Loggers[j].Inverters, l.Inverters)
+			// Strings slice is replaced by enrichSitesWithVMData, no need to deep copy
+			// KPI is value type, copied automatically
+		}
+	}
+	return dst
+}
+
+// fetchDailyRange fetches time-series data and calls callback for each point
+func fetchDailyRange(endpoint, query string, start, end time.Time, callback func(ts time.Time, val float64)) {
+	// Step = 1 day (86400 seconds)
+	u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=86400",
+		endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
+	
+	resp, err := http.Get(u)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	
+	body, _ := io.ReadAll(resp.Body)
+	
+	var result struct {
+		Data struct {
+			Result []struct {
+				Values [][]interface{} `json:"values"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	
+	if json.Unmarshal(body, &result) != nil {
+		return
+	}
+	
+	if len(result.Data.Result) == 0 {
+		return
+	}
+	
+	for _, v := range result.Data.Result[0].Values {
+		if len(v) >= 2 {
+			ts := time.Unix(int64(v[0].(float64)), 0)
+			valStr, _ := v[1].(string)
+			var val float64
+			fmt.Sscanf(valStr, "%f", &val)
+			callback(ts, val)
+		}
+	}
 }

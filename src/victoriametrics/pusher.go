@@ -28,7 +28,7 @@ func NewClient(endpoint string) *Client {
 	return &Client{
 		Config: Config{Endpoint: endpoint},
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 90 * time.Second,
 		},
 	}
 }
@@ -201,6 +201,7 @@ func convertDeviceMetrics(prefix string, data GenericData, station string) []str
 func (c *Client) PushAllFromDirectory(outputDir string) error {
 	var allMetrics []string
 	var fileCount int
+	batchSize := 50 // Push every 50 files to avoid timeout
 
 	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -216,6 +217,20 @@ func (c *Client) PushAllFromDirectory(outputDir string) error {
 			if metrics != "" {
 				allMetrics = append(allMetrics, metrics)
 				fileCount++
+
+				// Check if batch is full
+				if len(allMetrics) >= batchSize {
+					payload := strings.Join(allMetrics, "\n")
+					if err := c.PushMetrics(payload); err != nil {
+						fmt.Printf("⚠️  Lỗi push batch (%d files): %v\n", len(allMetrics), err)
+					} else {
+						fmt.Print("↑") // Visual feedback for batch push
+					}
+					// Reset batch
+					allMetrics = nil
+					// Add small sleep to not overwhelm server
+					time.Sleep(200 * time.Millisecond)
+				}
 			}
 		}
 		return nil
@@ -224,16 +239,20 @@ func (c *Client) PushAllFromDirectory(outputDir string) error {
 		return err
 	}
 
-	if len(allMetrics) == 0 {
+	// Push remaining metrics
+	if len(allMetrics) > 0 {
+		payload := strings.Join(allMetrics, "\n")
+		if err := c.PushMetrics(payload); err != nil {
+			return err
+		}
+		fmt.Print("↑")
+	}
+
+	if fileCount == 0 {
 		return fmt.Errorf("no metrics found in %s", outputDir)
 	}
 
-	payload := strings.Join(allMetrics, "\n")
-	if err := c.PushMetrics(payload); err != nil {
-		return err
-	}
-
-	fmt.Printf("Successfully pushed %d files to VictoriaMetrics\n", fileCount)
+	fmt.Printf("\nSuccessfully pushed %d files to VictoriaMetrics\n", fileCount)
 	return nil
 }
 

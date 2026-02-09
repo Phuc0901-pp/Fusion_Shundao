@@ -166,6 +166,10 @@ func FormatStationOverview(kpi *api.StationKPI, social *api.SocialContribution) 
 		output.Fields["battery_capacity"] = kpi.BatteryCapacity
 		output.Fields["currency"] = kpi.Currency
 		output.Fields["is_price_configured"] = kpi.IsPriceConfigured
+		output.Fields["daily_charge_energy"] = kpi.DailyChargeEnergy
+		output.Fields["daily_ongrid_energy"] = kpi.DailyOnGridEnergy
+		output.Fields["rechargeable_energy"] = kpi.RechargeableEnergy
+		output.Fields["redischargeable_energy"] = kpi.ReDischargeableEnergy
 	}
 
 	// Social Data

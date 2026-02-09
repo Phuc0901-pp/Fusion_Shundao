@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
 import type { AlertMessage } from '../../types';
 import { cn } from '../../utils/cn';
-import { Card, CardHeader, CardTitle } from '../ui/Card';
+import { Card, CardTitle } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
 

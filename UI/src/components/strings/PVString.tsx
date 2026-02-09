@@ -1,54 +1,61 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Zap } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import React, { useState } from 'react';
 import type { StringData } from '../../types';
+import { PVDetailModal } from './PVDetailModal';
 
 interface PVStringProps {
     data: StringData;
 }
 
 export const PVString: React.FC<PVStringProps> = React.memo(({ data }) => {
-    const isActive = data.current > 0 && data.voltage > 0;
+    const [showModal, setShowModal] = useState(false);
+
+    // Determine status color
+    // Green: I > 0, U > 0
+    // Red: I == 0, U > 0
+    // Gray: I == 0, U == 0
+    let statusClass = "bg-slate-300 border-slate-400"; // Gray (Default/Disconnected)
+
+    if (data.current > 0 && data.voltage > 0) {
+        statusClass = "bg-green-500 border-green-600 shadow-[0_0_8px_rgba(34,197,94,0.6)]"; // Green (On)
+    } else if (data.voltage > 0) {
+        statusClass = "bg-red-500 border-red-600 animate-pulse"; // Red (Fault/Review)
+    }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.05 }}
-            className={cn(
-                "relative p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all duration-300 cursor-pointer",
-                isActive
-                    ? "bg-gradient-to-br from-white to-slate-50 border-green-500/30 hover:border-green-500 shadow-sm"
-                    : "bg-slate-100 border-slate-200 opacity-60 grayscale"
-            )}
-        >
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider truncate w-full text-center" title={data.id}>
-                {data.id.split('-').pop()}
-            </span>
+        <>
+            <div
+                className="flex flex-col items-center gap-1 group cursor-pointer"
+                onClick={() => setShowModal(true)}
+                title={`String ${data.id}: ${data.voltage}V / ${data.current}A`}
+            >
+                {/* Status Light */}
+                <div className={`w-6 h-6 rounded-full border-2 transition-transform transform group-hover:scale-125 ${statusClass}`} />
 
-            <div className="flex flex-col items-center">
-                <span className={cn("text-base font-bold tabular-nums", isActive ? "text-slate-900" : "text-slate-400")}>
-                    {data.current.toFixed(1)} <span className="text-[10px] text-slate-500">A</span>
-                </span>
-                <span className="text-[10px] text-slate-400 tabular-nums">
-                    {data.voltage.toFixed(0)} V
+                {/* Label */}
+                <span className="text-[10px] font-mono text-slate-400 group-hover:text-slate-700 transition-colors">
+                    {data.id.split('-').pop()?.replace('PV', '')}
                 </span>
             </div>
 
-            {isActive && (
-                <Zap size={10} className="absolute top-1.5 right-1.5 text-solar-500 animate-pulse" />
-            )}
-
-            {/* Simple Progress Bar */}
-            <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                <motion.div
-                    className="h-full bg-emerald-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: isActive ? `${Math.min(data.current * 5, 100)}%` : 0 }}
-                    transition={{ duration: 1, ease: "easeOut" }}
+            {/* Detail Modal */}
+            {showModal && (
+                <PVDetailModal
+                    isOpen={showModal}
+                    onClose={() => setShowModal(false)}
+                    data={data}
                 />
-            </div>
-        </motion.div>
+            )}
+        </>
+    );
+}, (prev, next) => {
+    // Custom comparison for performance optimization
+    // Only re-render if voltage or current changes significantly or status changes
+    // But since we removed animations, simple ID/Current/Voltage check is fine.
+    // React.memo with default shallow compare might be enough if props are stable, 
+    // but explicit check is safer for heavy lists.
+    return (
+        prev.data.id === next.data.id &&
+        prev.data.current === next.data.current &&
+        prev.data.voltage === next.data.voltage
     );
 });

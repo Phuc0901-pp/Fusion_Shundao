@@ -1,7 +1,7 @@
 import React from 'react';
-import { Battery } from 'lucide-react';
 import { Card, CardTitle } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
+import { SolarPanelIcon } from '../ui/SolarPanelIcon';
 import type { Site } from '../../types';
 import { SiteGroup } from './SiteGroup';
 
@@ -74,7 +74,7 @@ export const StringDiagram: React.FC<StringDiagramProps> = ({ sites = [], loadin
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <CardTitle className="mb-1">
-                        <Battery size={20} className="text-solar-500" />
+                        <SolarPanelIcon size={20} className="text-solar-500" />
                         Trạng Thái Chuỗi PV
                     </CardTitle>
                     {/* Selectors Row */}
@@ -94,7 +94,7 @@ export const StringDiagram: React.FC<StringDiagramProps> = ({ sites = [], loadin
                             onChange={(e) => setSelectedLoggerId(e.target.value)}
                         >
                             <option value="all">Tất cả bộ ghi</option>
-                            {availableLoggers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                            {availableLoggers.map((l, index) => <option key={`${l.id}-${index}`} value={l.id}>{l.name} ({l.inverters?.length || 0} Inv)</option>)}
                         </select>
                         <span className="text-slate-300">/</span>
                         <select
@@ -103,8 +103,8 @@ export const StringDiagram: React.FC<StringDiagramProps> = ({ sites = [], loadin
                             onChange={(e) => setSelectedInverterId(e.target.value)}
                         >
                             <option value="all">Tất cả biến tần</option>
-                            {displayedLoggers.flatMap(l => l.inverters).map(inv => (
-                                <option key={inv.id} value={inv.id}>{inv.name}</option>
+                            {displayedLoggers.flatMap(l => l.inverters).map((inv, index) => (
+                                <option key={`${inv.id}-${index}`} value={inv.id}>{inv.name}</option>
                             ))}
                         </select>
                     </div>

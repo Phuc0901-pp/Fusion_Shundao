@@ -29,7 +29,7 @@ export const LoggerGroup: React.FC<LoggerGroupProps> = React.memo(({ logger, sel
             </div>
 
             {/* Inverters Loop */}
-            <div className="space-y-8">
+            <div className="grid grid-cols-2 md:grid-cols-5 xl:grid-cols-10 gap-4">
                 {inverters.map((inverter) => (
                     <InverterCard key={inverter.id} inverter={inverter} />
                 ))}

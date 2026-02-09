@@ -126,8 +126,8 @@ func (f *Fetcher) ClearToken() {
 }
 
 // HasValidToken checks if the fetcher has a token and verifies it
-// It returns true if token exists and simple API call succeeds
-// It returns false if token is missing or expired
+// It returns true if token exists and API returns valid JSON
+// It returns false if token is missing, expired, or server returns HTML (login page)
 func (f *Fetcher) HasValidToken(ctx context.Context) bool {
 	f.mu.Lock()
 	token := f.roarand
@@ -137,14 +137,12 @@ func (f *Fetcher) HasValidToken(ctx context.Context) bool {
 		return false
 	}
 
-	// Try a lightweight API validation (e.g., list sites simplified)
-	// Just check if we can get a 200 OK from a known endpoint
+	// Try a lightweight API validation
+	// Return both status and first 50 chars of response body
 	js := fmt.Sprintf(`
 		(function() {
 			var xhr = new XMLHttpRequest();
 			var url = 'https://intl.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/station-kpi-data';
-			// Use a dummy station DN or just check if we get 401
-			// Actually, let's use the first target site if available
 			url += '?stationDn=NE=00000000'; 
 			url += '&_=' + Date.now();
 			
@@ -153,26 +151,47 @@ func (f *Fetcher) HasValidToken(ctx context.Context) bool {
 			xhr.setRequestHeader('Roarand', '%s');
 			
 			xhr.send();
-			return xhr.status;
+			
+			var bodyStart = (xhr.responseText || '').substring(0, 50).trim();
+			return JSON.stringify({status: xhr.status, body: bodyStart});
 		})()
 	`, token)
 
-	var status int
-	err := chromedp.Run(ctx, chromedp.Evaluate(js, &status))
+	var result string
+	err := chromedp.Run(ctx, chromedp.Evaluate(js, &result))
 	if err != nil {
 		return false
 	}
 
-	// 200 OK means valid.
-	// 401/403 means invalid.
-	// Even if station DN is wrong, we should get 200 with empty data or specific error, NOT 401.
-	if status == 401 || status == 403 {
+	// Parse result
+	var resp struct {
+		Status int    `json:"status"`
+		Body   string `json:"body"`
+	}
+	if json.Unmarshal([]byte(result), &resp) != nil {
 		return false
 	}
 
-	// Also if we get 302 redirect to login, it wraps to something else usually?
-	// For now assume non-401 is "session alive"
-	return true
+	// Check HTTP status
+	if resp.Status == 401 || resp.Status == 403 {
+		return false
+	}
+
+	// CRITICAL: Check if response body starts with HTML (login page = session expired)
+	// Even with 200 OK, if body starts with "<" it means we got HTML (login redirect)
+	bodyStart := strings.TrimSpace(resp.Body)
+	if strings.HasPrefix(bodyStart, "<") || strings.HasPrefix(strings.ToLower(bodyStart), "<!doctype") {
+		// Server returned HTML instead of JSON = session expired
+		return false
+	}
+
+	// Valid if body starts with JSON object or array
+	if strings.HasPrefix(bodyStart, "{") || strings.HasPrefix(bodyStart, "[") {
+		return true
+	}
+
+	// Unknown response format, treat as invalid to be safe
+	return false
 }
 
 // SetupNetworkListener listens for network events to capture Roarand token
@@ -228,6 +247,19 @@ func (f *Fetcher) WaitAndFetchSiteData(ctx context.Context) (string, error) {
 	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
 		fmt.Println("[Chờ] Đang load trang (15 giây)...")
 		time.Sleep(15 * time.Second)
+
+		// Check if token captured
+		f.mu.Lock()
+		if f.roarand == "" {
+			f.mu.Unlock()
+			fmt.Println("⚠️ Chưa bắt được Token. Thử reload trang...")
+			if err := chromedp.Reload().Do(ctx); err != nil {
+				fmt.Printf("Lỗi reload: %v\n", err)
+			}
+			time.Sleep(10 * time.Second)
+		} else {
+			f.mu.Unlock()
+		}
 
 		// Try to extract Roarand from browser if not captured
 		f.mu.Lock()
@@ -614,12 +646,16 @@ type StationKPI struct {
 	DailyIncome                 float64 `json:"dailyIncome"`
 	TotalChargeEnergy           float64 `json:"totalChargeEnergy"`
 	TotalDischargeEnergy        float64 `json:"totalDischargeEnergy"`
+	DailyChargeEnergy           float64 `json:"dailyChargeEnergy"`
+	DailyOnGridEnergy           float64 `json:"dailyOnGridEnergy"`
 	DailyChargeCapacity         float64 `json:"dailyChargeCapacity"`
 	DailyDischargeCapacity      float64 `json:"dailyDischargeCapacity"`
 	CumulativeChargeCapacity    float64 `json:"cumulativeChargeCapacity"`
 	CumulativeDischargeCapacity float64 `json:"cumulativeDischargeCapacity"`
 	Currency                    int     `json:"currency"`
 	BatteryCapacity             float64 `json:"batteryCapacity"`
+	RechargeableEnergy          float64 `json:"rechargeableEnergy"`
+	ReDischargeableEnergy       float64 `json:"reDischargeableEnergy"`
 	IsPriceConfigured           bool    `json:"isPriceConfigured"`
 }
 
@@ -670,7 +706,10 @@ func (f *Fetcher) FetchStationKPI(ctx context.Context, stationDn string) (*Stati
 			InverterPower               float64 `json:"inverterPower"`
 			DailyIncome                 string  `json:"dailyIncome"`
 			TotalChargeEnergy           string  `json:"totalChargeEnergy"`
+			DailyChargeEnergy           string  `json:"dailyChargeEnergy"`
+			DailyOnGridEnergy           string  `json:"dailyOnGridEnergy"`
 			ReDischargeableEnergy       string  `json:"reDischargeableEnergy"`
+			RechargeableEnergy          string  `json:"rechargeableEnergy"`
 			DailyChargeCapacity         string  `json:"dailyChargeCapacity"`
 			DailyDischargeCapacity      string  `json:"dailyDischargeCapacity"`
 			CumulativeChargeCapacity    string  `json:"cumulativeChargeCapacity"`
@@ -696,10 +735,14 @@ func (f *Fetcher) FetchStationKPI(ctx context.Context, stationDn string) (*Stati
 	kpi.InverterPower = response.KpiData.InverterPower
 	fmt.Sscanf(response.KpiData.DailyIncome, "%f", &kpi.DailyIncome)
 	fmt.Sscanf(response.KpiData.TotalChargeEnergy, "%f", &kpi.TotalChargeEnergy)
+	fmt.Sscanf(response.KpiData.DailyChargeEnergy, "%f", &kpi.DailyChargeEnergy)
+	fmt.Sscanf(response.KpiData.DailyOnGridEnergy, "%f", &kpi.DailyOnGridEnergy)
 	fmt.Sscanf(response.KpiData.DailyChargeCapacity, "%f", &kpi.DailyChargeCapacity)
 	fmt.Sscanf(response.KpiData.DailyDischargeCapacity, "%f", &kpi.DailyDischargeCapacity)
 	fmt.Sscanf(response.KpiData.CumulativeChargeCapacity, "%f", &kpi.CumulativeChargeCapacity)
 	fmt.Sscanf(response.KpiData.CumulativeDisChargeCapacity, "%f", &kpi.CumulativeDischargeCapacity)
+	fmt.Sscanf(response.KpiData.ReDischargeableEnergy, "%f", &kpi.ReDischargeableEnergy)
+	fmt.Sscanf(response.KpiData.RechargeableEnergy, "%f", &kpi.RechargeableEnergy)
 	kpi.Currency = response.KpiData.Currency
 	kpi.BatteryCapacity = response.KpiData.BatteryCapacity
 	kpi.IsPriceConfigured = response.KpiData.IsPriceConfigured

@@ -2,6 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardHeader, CardTitle } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
+import { ChartNoAxesCombined } from 'lucide-react';
 
 interface DataPoint {
     time: string;
@@ -114,9 +115,14 @@ export const PowerChart: React.FC<PowerChartProps> = ({ data, siteData, loading 
     return (
         <Card className="h-[400px]">
             <CardHeader className="mb-6 flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Biểu Đồ Công Suất</CardTitle>
-                    <p className="text-slate-500 text-sm">Sản lượng thời gian thực (kW)</p>
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 rounded-lg">
+                        <ChartNoAxesCombined className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                        <CardTitle>Biểu Đồ Công Suất</CardTitle>
+                        <p className="text-slate-500 text-sm">Sản lượng thời gian thực (kW)</p>
+                    </div>
                 </div>
 
                 {/* Site Selector */}
@@ -131,7 +137,7 @@ export const PowerChart: React.FC<PowerChartProps> = ({ data, siteData, loading 
                 </select>
             </CardHeader>
 
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] w-full" style={{ minWidth: '100px', minHeight: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={displayedData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />

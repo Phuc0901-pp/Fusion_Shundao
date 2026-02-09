@@ -6,9 +6,14 @@ export interface DeviceData {
 }
 
 export interface KPI {
-    daily_energy: number;
-    total_income: number;
-    active_power: number;
+    dailyEnergy: number;
+    dailyIncome: number;
+    totalEnergy: number;
+    ratedPower: number;
+    gridSupplyToday: number;
+    standardCoalSaved: number;
+    co2Reduction: number;
+    treesPlanted: number;
 }
 
 export interface Environment {
@@ -41,6 +46,7 @@ export interface StringData {
 export interface Inverter {
     id: string;
     name: string;
+    deviceStatus: string;
     strings: StringData[];
 }
 
@@ -54,6 +60,7 @@ export interface Site {
     id: string;
     name: string;
     loggers: SmartLogger[];
+    kpi?: KPI;
 }
 
 export interface Sensor {
@@ -76,4 +83,17 @@ export interface Meter {
     totalPower: number; // kW
     frequency: number; // Hz
     powerFactor: number;
+}
+
+// Production chart data point (per site)
+export interface ProductionDataPoint {
+    date: string;           // "01", "02", etc.
+    // SHUNDAO 1
+    site1DailyEnergy: number;
+    site1GridFeedIn: number;
+    site1Irradiation: number;
+    // SHUNDAO 2
+    site2DailyEnergy: number;
+    site2GridFeedIn: number;
+    site2Irradiation: number;
 }

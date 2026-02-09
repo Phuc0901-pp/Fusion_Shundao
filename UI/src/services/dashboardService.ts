@@ -22,6 +22,7 @@ export const generateMockData = async () => {
             sensors: [],
             meters: [],
             siteData: { all: [], siteA: [], siteB: [] },
+            productionData: [],
             kpi: {
                 dailyEnergy: 0,
                 dailyIncome: 0,
