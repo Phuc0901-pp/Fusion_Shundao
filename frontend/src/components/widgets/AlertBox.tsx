@@ -89,7 +89,7 @@ const findInverterById = (sites: Site[], deviceId: string): Inverter | null => {
 // Alert sound using Web Audio API (more reliable than Audio element)
 const playAlertSound = (level: 'error' | 'warning') => {
     try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
 
@@ -121,7 +121,7 @@ const playAlertSound = (level: 'error' | 'warning') => {
                 osc2.stop(audioContext.currentTime + 0.3);
             }, 200);
         }
-    } catch (e) {
+    } catch {
         console.log('Audio not supported');
     }
 };
