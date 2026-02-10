@@ -25,5 +25,4 @@ dist/
 .vscode/
 .idea/
 
-# Go
-go.sum
+
