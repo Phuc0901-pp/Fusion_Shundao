@@ -37,8 +37,14 @@ interface SingleSiteChartProps {
     viewMode: ViewMode;
 }
 
+interface ChartDataPoint {
+    date: string;
+    power: number;
+    irradiance: number;
+}
+
 // Daily Line Chart Component
-const DailyLineChart: React.FC<{ data: any[]; color: string }> = ({ data, color }) => (
+const DailyLineChart: React.FC<{ data: ChartDataPoint[]; color: string }> = ({ data, color }) => (
     <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -48,7 +54,7 @@ const DailyLineChart: React.FC<{ data: any[]; color: string }> = ({ data, color 
             <Tooltip
                 content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
-                        const d = payload[0]?.payload;
+                        const d = payload[0]?.payload as ChartDataPoint;
                         return (
                             <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-xl text-xs min-w-[180px]">
                                 <p className="text-slate-500 font-medium mb-2">Thời gian: {label}</p>
@@ -76,7 +82,7 @@ const DailyLineChart: React.FC<{ data: any[]; color: string }> = ({ data, color 
 );
 
 // Monthly Bar Chart Component
-const MonthlyBarChart: React.FC<{ data: any[]; color: string }> = ({ data, color }) => (
+const MonthlyBarChart: React.FC<{ data: ChartDataPoint[]; color: string }> = ({ data, color }) => (
     <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -86,7 +92,7 @@ const MonthlyBarChart: React.FC<{ data: any[]; color: string }> = ({ data, color
             <Tooltip
                 content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
-                        const d = payload[0]?.payload;
+                        const d = payload[0]?.payload as ChartDataPoint;
                         return (
                             <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-xl text-xs min-w-[180px]">
                                 <p className="text-slate-500 font-medium mb-2">Ngày: {label}</p>
@@ -204,7 +210,7 @@ const SingleSiteChart: React.FC<SingleSiteChartProps> = ({ siteName, data, color
                 </div>
                 <div className="h-[160px] w-full flex items-end gap-1">
                     {Array.from({ length: 8 }).map((_, i) => (
-                        <Skeleton key={i} className="w-full" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                        <Skeleton key={i} className="w-full" style={{ height: `${((i * 13) % 60) + 20}%` }} />
                     ))}
                 </div>
             </div>

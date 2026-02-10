@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Activity, DollarSign, RefreshCw } from 'lucide-react';
+import { Zap, Activity, DollarSign, RefreshCw, type LucideIcon } from 'lucide-react';
 import { MetricCard } from '../widgets/MetricCard';
 import { MetricDetailModal } from '../modals/MetricDetailModal';
 import type { Site, KPI } from '../../types';
@@ -16,11 +16,11 @@ export const ProductionSection: React.FC<ProductionSectionProps> = ({ kpi, sites
         title: string;
         unit: string;
         field: keyof KPI;
-        icon: any;
+        icon: LucideIcon;
         color: string;
     } | null>(null);
 
-    const handleCardClick = (title: string, unit: string, field: keyof KPI, icon: any, color: string) => {
+    const handleCardClick = (title: string, unit: string, field: keyof KPI, icon: LucideIcon, color: string) => {
         setSelectedMetric({ title, unit, field, icon, color });
     };
 

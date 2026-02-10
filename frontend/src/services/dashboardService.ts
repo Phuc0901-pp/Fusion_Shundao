@@ -16,6 +16,7 @@ export interface DeviceAlert extends AlertMessage {
 // Fetch real data from Go backend
 export const fetchDashboardData = async () => {
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = await api.get('/dashboard');
 
         if (!data.siteData) {
