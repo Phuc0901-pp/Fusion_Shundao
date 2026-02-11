@@ -1,0 +1,45 @@
+{
+  "browser": {
+    "headless_timeout": "168h",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  },
+  "api": {
+    "base_url": "https://intl.fusionsolar.huawei.com",
+    "endpoints": {
+      "login_page": "https://intl.fusionsolar.huawei.com/pvmswebsite/login/build/index.html",
+      "sso_login": "https://intl.fusionsolar.huawei.com/uniportal/login.do",
+      "station_kpi": "/rest/pvms/web/station/v1/overview/station-kpi-data",
+      "social_contrib": "/rest/pvms/web/station/v1/station/social-contribution",
+      "org_tree": "/rest/dp/pvms/organization/v1/tree",
+      "realtime_data": "/rest/pvms/web/device/v1/device-real-kpi-history",
+      "string_data": "/rest/pvms/web/device/v1/inverter-string-data",
+      "locate_tree": "/rest/dp/pvms/organization/v1/locate-tree"
+    },
+    "params": {
+      "sub_node_type_ids": "20801,20800,20811,20814,20815,20816,20819,20821,20822,20824,20835,20836,20837,20838,20847,60014,60022,60066,20844,60080,60026,59986,60044,60043,60001,60002,60003,60010,60015,69999,60092,60067",
+      "type_id_include": "23089,23091"
+    }
+  },
+  "selectors": {
+    "username_input": "#username",
+    "password_input": "input[type='password']",
+    "login_button": "#loginBtn",
+    "error_message": ".error-msg"
+  },
+  "system": {
+    "vm_endpoint": "http://100.118.142.45:8428",
+    "batch_size_inverter": 15,
+    "batch_size_meter": 20,
+    "fetch_interval_minutes": 5
+  },
+  "sites": [
+    {
+      "id": "NE=50143101",
+      "name": "SHUNDAO 1"
+    },
+    {
+      "id": "NE=50127734",
+      "name": "SHUNDAO 2"
+    }
+  ]
+}
