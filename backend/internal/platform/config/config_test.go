@@ -37,10 +37,9 @@ func TestLoadConfig(t *testing.T) {
 	os.WriteFile(filepath.Join(configDir, "app.json"), appContent, 0644)
 	os.WriteFile(filepath.Join(configDir, "signals.json"), signalsContent, 0644)
 
-	// Change working directory to tmpDir so LoadConfig can find config/
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
-	os.Chdir(tmpDir)
+	// Set ConfigDir for test
+	ConfigDir = configDir
+	defer func() { ConfigDir = "" }()
 
 	// Run LoadConfig
 	if err := LoadConfig(); err != nil {

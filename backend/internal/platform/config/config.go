@@ -9,11 +9,11 @@ import (
 
 // AppConfig represents the structure of app.json
 type AppConfig struct {
-	Browser   BrowserConfig   `json:"browser"`
-	API       APIConfig       `json:"api"`
-	Selectors SelectorConfig  `json:"selectors"`
-	System    SystemConfig    `json:"system"`
-	Sites     []SiteConfig    `json:"sites"`
+	Browser   BrowserConfig  `json:"browser"`
+	API       APIConfig      `json:"api"`
+	Selectors SelectorConfig `json:"selectors"`
+	System    SystemConfig   `json:"system"`
+	Sites     []SiteConfig   `json:"sites"`
 }
 
 type SiteConfig struct {
@@ -61,6 +61,10 @@ type SignalsConfig struct {
 }
 
 var (
+	// ConfigDir is the directory where config files are located
+	// If empty, it will search in default locations
+	ConfigDir string
+
 	App     AppConfig
 	Signals SignalsConfig
 )
@@ -68,29 +72,63 @@ var (
 // LoadConfig loads both app and signals configurations
 func LoadConfig() error {
 	// 1. Load App Config
-	if err := loadJSON("configs/app.json", &App); err != nil {
+	if err := loadJSON("app.json", &App); err != nil {
 		return fmt.Errorf("failed to load app.json: %v", err)
 	}
 
 	// 2. Load Signals Config
-	if err := loadJSON("configs/signals.json", &Signals); err != nil {
+	if err := loadJSON("signals.json", &Signals); err != nil {
 		return fmt.Errorf("failed to load signals.json: %v", err)
 	}
 
 	return nil
 }
 
-func loadJSON(path string, target interface{}) error {
-	// Try to find file relative to current binary or source
-	// For simplicity, we assume running from root or we check existence
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		// Try going up one level if we are in src/
-		path = filepath.Join("..", path)
+func loadJSON(filename string, target interface{}) error {
+	path, err := intentConfigFile(filename)
+	if err != nil {
+		return err
 	}
-	
+
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(bytes, target)
+}
+
+func intentConfigFile(filename string) (string, error) {
+	// 1. Check if ConfigDir is set (e.g. for tests)
+	if ConfigDir != "" {
+		path := filepath.Join(ConfigDir, filename)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+		// If explicit ConfigDir is set but file not found, we might want to return error or fall through
+		// Let's return error to be strict
+		return "", fmt.Errorf("config file %s not found in %s", filename, ConfigDir)
+	}
+
+	// 2. Standard Search Paths
+	// We search:
+	// - ./configs/
+	// - ../configs/
+	// - ../../configs/
+	// - ./ (root)
+	searchPaths := []string{
+		"configs",
+		filepath.Join("..", "configs"),
+		filepath.Join("..", "..", "configs"),
+		filepath.Join("..", "..", "..", "configs"),
+		".",
+	}
+
+	for _, dir := range searchPaths {
+		path := filepath.Join(dir, filename)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", os.ErrNotExist
 }
