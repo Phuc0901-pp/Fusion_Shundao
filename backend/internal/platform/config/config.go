@@ -13,7 +13,16 @@ type AppConfig struct {
 	API       APIConfig       `json:"api"`
 	Selectors SelectorConfig  `json:"selectors"`
 	System    SystemConfig    `json:"system"`
+	Database  DatabaseConfig  `json:"database"`
 	Sites     []SiteConfig    `json:"sites"`
+}
+
+type DatabaseConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	DBName   string `json:"dbname"`
 }
 
 type SiteConfig struct {

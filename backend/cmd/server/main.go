@@ -11,6 +11,7 @@ import (
 
 	"fusion/internal/api"
 	"fusion/internal/browser"
+	"fusion/internal/database"
 	"fusion/internal/core/formatter"
 	"fusion/internal/login"
 	"fusion/internal/platform/config"
@@ -38,6 +39,14 @@ func main() {
 	}
 	utils.InitLogger()
 	formatter.InitMapper()
+
+	// 2. Init Database
+	if err := database.InitDB(); err != nil {
+		utils.LogError("[ERROR] Failed to init database: %v", err)
+		// We might want to exit or continue depending on severity. 
+		// For now, let's log and maybe exit if strict.
+		// os.Exit(1) 
+	}
 
 	utils.LogInfo("=== FusionSolar Site Data Fetcher (Continuous 24/7) ===")
 	utils.LogInfo("[READY] Đang khởi động (headless check)...")
@@ -116,6 +125,20 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 		// 1. Station Overview
 		fetchStationOverview(ctx, fetcher, s, siteDisplay)
 
+
+		// [DB] Save Site
+		// Use Generated UUID for Site ID to match JSON output
+		siteUUID := utils.GenerateUUID(s.ID)
+		created, err := database.UpsertSite(siteUUID, s.Name)
+		if err != nil {
+			utils.LogError("[ERROR] DB Error (Site): %v", err)
+		} else if created {
+			utils.LogInfo("[SUCCESS] DB Saved New Site: %s (UUID: %s)", s.Name, siteUUID)
+		}
+
+		// Save detailed metadata for enrichment.go to read consistent ID
+		saveSiteMetadata(s.Name, s.ID, siteUUID)
+
 		// 2. Scan SmartLoggers & Devices
 		utils.LogInfo("[INFO] Quét thiết bị... ")
 		smartLoggers, err := fetcher.FetchSmartLoggers(ctx, s.ID)
@@ -144,6 +167,17 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 				saveFormattedData(fmtSlData, siteDisplay, slFolder, "smartLogger_data.json")
 			}
 
+
+			// [DB] Save SmartLogger
+			// KEEP ID as ElementDn (NE=...) as requested
+			// SiteID FK must match the Site's UUID
+			created, err := database.UpsertSmartLogger(sl.ElementDn, siteUUID, sl.NodeName)
+			if err != nil {
+				utils.LogError("[ERROR] DB Error (SmartLogger): %v", err)
+			} else if created {
+				utils.LogInfo("[SUCCESS] DB Saved New SL: %s", sl.NodeName)
+			}
+
 			// Fetch Devices List
 			devices, errDev := fetcher.FetchDevicesForSmartLogger(ctx, sl.ElementDn)
 			if errDev != nil {
@@ -165,6 +199,30 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 					Model:      model,
 					SN:         sn,
 					DevicePath: dPath,
+				}
+
+				// [DB] Save Device
+				// Determine Type:
+				dTypeForDB := "Unknown"
+				if d.TypeId == 23022 || strings.Contains(strings.ToLower(d.NodeName), "inverter") {
+					dTypeForDB = "Inverter"
+				} else if strings.Contains(strings.ToLower(d.NodeName), "meter") {
+					dTypeForDB = "Meter"
+				} else {
+					dTypeForDB = "Sensor"
+				}
+
+
+				// [DB] Save Device
+				// Use Generated UUID for Device ID
+				// SmartLoggerID FK remains ElementDn
+				deviceUUID := utils.GenerateUUID(d.ElementDn)
+				created, err := database.UpsertDevice(deviceUUID, sl.ElementDn, d.NodeName, dTypeForDB, model, sn)
+				if err != nil {
+					utils.LogError("[ERROR] DB Error (Device): %v", err)
+				} else if created {
+					// Optional: Log only if needed, or keep it silent for devices as requested "clean log"
+					// utils.LogInfo("      [SUCCESS] DB Saved New Device: %s", d.NodeName)
 				}
 
 				dType := strings.ToLower(d.NodeName)

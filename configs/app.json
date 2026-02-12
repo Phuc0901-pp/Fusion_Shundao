@@ -32,6 +32,13 @@
     "batch_size_meter": 20,
     "fetch_interval_minutes": 5
   },
+  "database": {
+    "host": "vpn377464140.softether.net",
+    "port": 1993,
+    "user": "mtryha11",
+    "password": "Hpx21led",
+    "dbname": "SHUNDAO_DASHBOARD"
+  },
   "sites": [
     {
       "id": "NE=50143101",

@@ -56,21 +56,28 @@ type AlertMessage struct {
 
 type SiteNode struct {
 	ID      string       `json:"id"`
-	Name    string       `json:"name"`
+	DbID    string       `json:"dbId"` // Match DB UUID
+	Name        string       `json:"name"`
+	DefaultName string       `json:"defaultName"`
 	Loggers []LoggerNode `json:"loggers"`
 	KPI     KPIData      `json:"kpi"`
 }
 
 type LoggerNode struct {
 	ID        string         `json:"id"`
-	Name      string         `json:"name"`
+	DbID      string         `json:"dbId"` // Match DB ID (DN)
+	Name        string         `json:"name"`
+	DefaultName string         `json:"defaultName"`
 	Inverters []InverterNode `json:"inverters"`
 	KPI       KPIData        `json:"kpi"`
 }
 
 type InverterNode struct {
 	ID           string       `json:"id"`
+	DbID         string       `json:"dbId"` // Match DB UUID
 	Name         string       `json:"name"`
+	DefaultName  string       `json:"defaultName"`
+	NumberStringSet string    `json:"numberStringSet,omitempty"` // Option 2: Setup
 	DeviceStatus string       `json:"deviceStatus"`
 	Strings      []StringData `json:"strings"`
 	// Power metrics
@@ -133,4 +140,11 @@ type MeterData struct {
 	TotalPower  float64 `json:"totalPower"`
 	Frequency   float64 `json:"frequency"`
 	PowerFactor float64 `json:"powerFactor"`
+}
+
+// InverterPowerPoint represents a single data point for inverter power chart (DC + AC)
+type InverterPowerPoint struct {
+	Time    string   `json:"time"`              // "HH:mm"
+	DcPower *float64 `json:"dcPower,omitempty"`  // kW
+	AcPower *float64 `json:"acPower,omitempty"`  // kW (p_out_kw)
 }

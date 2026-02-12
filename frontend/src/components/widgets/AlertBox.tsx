@@ -1,16 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { AlertTriangle, CheckCircle, Info, XCircle, Filter, ExternalLink } from 'lucide-react';
-import type { AlertMessage, Site, Inverter } from '../../types';
+import type { Site, Inverter, DeviceAlert } from '../../types';
 import { cn } from '../../utils/cn';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { InverterDetailModal } from '../strings/InverterDetailModal';
-
-// Extended alert type with device reference
-interface DeviceAlert extends AlertMessage {
-    deviceId?: string;
-    deviceType?: 'inverter' | 'sensor' | 'meter' | 'system';
-}
 
 interface AlertBoxProps {
     alerts: DeviceAlert[];
@@ -86,84 +80,14 @@ const findInverterById = (sites: Site[], deviceId: string): Inverter | null => {
     return null;
 };
 
-// Alert sound using Web Audio API (more reliable than Audio element)
-const playAlertSound = (level: 'error' | 'warning') => {
-    try {
-        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        // Different tones for error vs warning
-        oscillator.frequency.value = level === 'error' ? 800 : 600;
-        oscillator.type = 'sine';
-
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-
-        // Play 2 beeps for error
-        if (level === 'error') {
-            setTimeout(() => {
-                const osc2 = audioContext.createOscillator();
-                const gain2 = audioContext.createGain();
-                osc2.connect(gain2);
-                gain2.connect(audioContext.destination);
-                osc2.frequency.value = 800;
-                osc2.type = 'sine';
-                gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                osc2.start(audioContext.currentTime);
-                osc2.stop(audioContext.currentTime + 0.3);
-            }, 200);
-        }
-    } catch {
-        console.log('Audio not supported');
-    }
-};
+// Audio is now handled by useSmartAlerts hook
 
 export const AlertBox: React.FC<AlertBoxProps> = memo(({ alerts, sites = [], loading = false }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [filter, setFilter] = useState<FilterLevel>('all');
     const [showFilter, setShowFilter] = useState(false);
     const [selectedInverter, setSelectedInverter] = useState<Inverter | null>(null);
-    const prevAlertCountRef = useRef({ error: 0, warning: 0 });
-    const isFirstLoad = useRef(true);
-
-    // Play sound when new error/warning alerts arrive (or on initial load)
-    useEffect(() => {
-        const currentErrors = alerts.filter(a => a.level === 'error').length;
-        const currentWarnings = alerts.filter(a => a.level === 'warning').length;
-
-        // On first load with existing alerts, play sound
-        if (isFirstLoad.current && alerts.length > 0) {
-            isFirstLoad.current = false;
-            if (currentErrors > 0) {
-                playAlertSound('error');
-            } else if (currentWarnings > 0) {
-                playAlertSound('warning');
-            }
-            prevAlertCountRef.current = { error: currentErrors, warning: currentWarnings };
-            return;
-        }
-
-        isFirstLoad.current = false;
-
-        // Check for new errors
-        if (currentErrors > prevAlertCountRef.current.error) {
-            playAlertSound('error');
-        }
-        // Check for new warnings (only if no new errors)
-        else if (currentWarnings > prevAlertCountRef.current.warning) {
-            playAlertSound('warning');
-        }
-
-        prevAlertCountRef.current = { error: currentErrors, warning: currentWarnings };
-    }, [alerts]);
+    // Audio/TTS is now centralized in useSmartAlerts hook
 
     // Auto-scroll to bottom on new alerts
     useEffect(() => {

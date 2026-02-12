@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"fusion/internal/database"
 	"fusion/internal/platform/utils"
 )
 
@@ -29,14 +30,17 @@ func StartServer() {
 
 	http.HandleFunc("/api/dashboard", handleDashboard)
 	http.HandleFunc("/api/production-monthly", handleMonthlyProduction)
+	http.HandleFunc("/api/rename", handleRename)
+	http.HandleFunc("/api/inverter/dc-power", handleInverterDCPower)
 	http.HandleFunc("/healthz", handleHealthz) // Logic from low priority tasks
 
 	port := ":5039"
-	fmt.Printf("🚀 Starting UI Backend Server on %s...\n", port)
+	fmt.Printf("[READY] Starting UI Backend Server on %s...\n", port)
 	if err := http.ListenAndServe(port, corsMiddleware(http.DefaultServeMux)); err != nil {
-		utils.LogError("❌ Server failed: %v", err)
+		utils.LogError("[ERROR] Server failed: %v", err)
 		os.Exit(1)
-	}}
+	}
+}
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,13 +89,90 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func handleRename(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" && r.Method != "PUT" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		EntityType string `json:"entityType"` // "site", "logger", "device"
+		ID         string `json:"id"`         // DB ID
+		NewName    string `json:"newName"`
+		StringSet  string `json:"stringSet"`  // Option 2
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.EntityType == "" || req.ID == "" {
+		http.Error(w, "Missing required fields: entityType, id", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Update Name (if provided or empty string means reset)
+	// For Option 2: rename might not be the only action. 
+	// But current UI sends newName. If we want to update ONLY stringSet, frontend should send current name? 
+	// Or we make UpdateNameChange optional?
+	// Let's assume frontend sends everything.
+	if err := database.UpdateNameChange(req.EntityType, req.ID, req.NewName); err != nil {
+		utils.LogError("[ERROR] Rename failed: %v", err)
+		http.Error(w, fmt.Sprintf("[ERROR] Failed to rename: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Update StringSet (only for device)
+	if req.EntityType == "device" {
+		// Even if empty, we update it (to allow clearing)
+		// But if the field is missing in JSON (nil), we wouldn't know. 
+		// Since we use struct, zero value is "". 
+		// Frontend should send valid stringSet or "" to clear.
+		if err := database.UpdateDeviceStringSet(req.ID, req.StringSet); err != nil {
+			utils.LogError("[ERROR] Failed to update string set: %v", err)
+			// Don't fail the whole request, but log it.
+		}
+	}
+
+	utils.LogInfo("[INFO] Updated %s %s: Name='%s', StringSet='%s'", req.EntityType, req.ID, req.NewName, req.StringSet)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "newName": req.NewName})
+}
+
+func handleInverterDCPower(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.URL.Query().Get("device")
+	if deviceID == "" {
+		http.Error(w, "Missing 'device' query parameter", http.StatusBadRequest)
+		return
+	}
+
+	data := fetchInverterPowerData(deviceID)
+
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Content-Type", "application/json")
+
+	type PowerResponse struct {
+		Device string               `json:"device"`
+		Data   []InverterPowerPoint `json:"data"`
+	}
+
+	resp := PowerResponse{
+		Device: deviceID,
+		Data:   data,
+	}
+
+	bytes, _ := json.Marshal(resp)
+	w.Write(bytes)
+}
+
 func startBackgroundUpdater() {
 	// Initial population
-	fmt.Println("⏳ Initializing site structure (Disk Scan)...")
+	fmt.Println("[WAITING] Initializing site structure (Disk Scan)...")
 	scanSitesStructure()
-	fmt.Println("⏳ Initializing metrics (VM Fetch)...")
+	fmt.Println("[WAITING] Initializing metrics (VM Fetch)...")
 	updateMetrics()
-	fmt.Println("✅ Background updater started.")
+	fmt.Println("[SUCCESS] Background updater started.")
 
 	// Metric Loop (5s)
 	go func() {
@@ -108,7 +189,7 @@ func startBackgroundUpdater() {
 func watchOutputDirectory(rootDir string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		utils.LogError("❌ Failed to create watcher: %v", err)
+		utils.LogError("[ERROR] Failed to create watcher: %v", err)
 		return
 	}
 	defer watcher.Close()
@@ -122,7 +203,7 @@ func watchOutputDirectory(rootDir string) {
 			debounceTimer.Stop()
 		}
 		debounceTimer = time.AfterFunc(debounceDuration, func() {
-			utils.LogInfo("📂 Detected changes in output directory. Re-scanning structure...")
+			utils.LogInfo("[COLLECT] Detected changes in output directory. Re-scanning structure...")
 			scanSitesStructure()
 		})
 	}
@@ -142,10 +223,10 @@ func watchOutputDirectory(rootDir string) {
 
 	// Initial add
 	if err := addWatchers(rootDir); err != nil {
-		utils.LogError("⚠️ Error adding watchers: %v", err)
+		utils.LogError("[ERROR] Error adding watchers: %v", err)
 	}
 
-	utils.LogInfo("👀 Started watching %s for structure changes...", rootDir)
+	utils.LogInfo("[INFO] Started watching %s for structure changes...", rootDir)
 
 	for {
 		select {
@@ -197,6 +278,9 @@ func updateMetrics() {
 	baseSitesLock.RLock()
 	sites := deepCopySites(baseSites)
 	baseSitesLock.RUnlock()
+
+	// 2a. Enrich with Custom Names from DB
+	enrichSitesWithCustomNames(&sites)
 
 	// 3. Enrich Sites with Real-time Data from VM (Power, Strings, Status)
 	enrichSitesWithVMData(&sites)

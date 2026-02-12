@@ -11,24 +11,13 @@ interface WeatherData {
 }
 
 // WMO Weather interpretation codes (WW)
-// https://open-meteo.com/en/docs
 export const getWeatherCondition = (code: number, isDay: number) => {
-    // 0: Clear sky
-    // 1, 2, 3: Mainly clear, partly cloudy, and overcast
-    // 45, 48: Fog
-    // 51, 53, 55: Drizzle
-    // 61, 63, 65: Rain
-    // 71, 73, 75: Snow fall
-    // 80, 81, 82: Rain showers
-    // 95, 96, 99: Thunderstorm
-
     if (code === 0) return isDay ? 'sunny' : 'clear';
     if ([1, 2, 3].includes(code)) return isDay ? 'cloudy-sun' : 'cloudy-moon';
     if ([45, 48].includes(code)) return 'fog';
     if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return 'rain';
     if ([71, 73, 75, 85, 86].includes(code)) return 'snow';
     if ([95, 96, 99].includes(code)) return 'thunder';
-
     return 'unknown';
 };
 
@@ -49,11 +38,34 @@ const fetchWeather = async (): Promise<WeatherData> => {
                         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
                     );
 
-                    // 2. Get Location Name (Reverse Geocoding) - Optional, using a simple open API or mock if fails
-                    // For simplicity and speed, we might skip full geocoding or use a free service.
-                    // Let's use Open-Meteo's geocoding API if possible, or just default to coordinates.
-                    // Actually, Open-Meteo is just weather. Let's return coordinates or a generic name for now to keep it fast.
-                    // Or even better: "Local Weather"
+                    // 2. Get Location Name (Detailed Reverse Geocoding)
+                    let locationName = "Local Station";
+                    try {
+                        const geoRes = await axios.get(
+                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+                            { headers: { 'Accept-Language': 'vi' } } // Request Vietnamese
+                        );
+                        if (geoRes.data && geoRes.data.address) {
+                            const addr = geoRes.data.address;
+
+                            // Detailed format: House, Road, Hamlet, Ward/Suburb, District, City
+                            const components = [
+                                addr.house_number,
+                                addr.road || addr.street || addr.pedestrian,
+                                addr.hamlet || addr.village,
+                                addr.suburb || addr.quarter || addr.ward,
+                                addr.district || addr.county,
+                                addr.city || addr.state || addr.province
+                            ].filter(Boolean);
+
+                            if (components.length > 0) {
+                                // Join with comma space
+                                locationName = components.join(', ');
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Geocoding failed, using default', e);
+                    }
 
                     const current = weatherRes.data.current_weather;
 
@@ -61,17 +73,17 @@ const fetchWeather = async (): Promise<WeatherData> => {
                         temperature: current.temperature,
                         weatherCode: current.weathercode,
                         isDay: current.is_day === 1,
-                        locationName: "Local Station",
+                        locationName,
                         latitude,
                         longitude
                     });
 
                 } catch (error) {
-                    reject(error);
+                    reject(error); // Weather fetch error
                 }
             },
             (error) => {
-                reject(error);
+                reject(error); // Geolocation error
             }
         );
     });

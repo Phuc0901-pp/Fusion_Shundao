@@ -1,83 +1,96 @@
 import React, { useEffect, useState } from 'react';
 import { WeatherWidget } from '../widgets/WeatherWidget';
-import { Sun, MapPin } from 'lucide-react';
+import { MapPin, Clock, User } from 'lucide-react';
 import { useWeather } from '../../hooks/useWeather';
-
+import { cn } from '../../utils/cn';
 import logo from '../../assets/LOGO.png';
 
 export const Header: React.FC = () => {
     const [time, setTime] = useState(new Date());
     const { data: weather } = useWeather();
+    const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
+        const handleScroll = () => setScrolled(window.scrollY > 0);
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('scroll', handleScroll);
+        };
     }, []);
 
-    const googleMapsUrl = weather?.latitude && weather?.longitude
-        ? `https://www.google.com/maps?q=${weather.latitude},${weather.longitude}`
-        : null;
-
     return (
-        <header className="h-16 glass-strong border-b border-white/30 flex items-center justify-between px-6 sticky top-0 z-30 shadow-sm">
-            {/* Left: Branding */}
+        <header className={cn(
+            "fixed top-0 left-0 right-0 z-40 transition-all duration-200 h-16 flex items-center justify-between px-6 lg:px-8",
+            scrolled ? "bg-white shadow-sm border-b border-slate-100" : "bg-white border-b border-slate-100"
+        )}>
+            {/* Left: Brand */}
             <div className="flex items-center gap-3">
-                <div className="relative">
-                    <img src={logo} alt="Shundao Solar" className="h-10 w-auto relative z-10" />
-                    <div className="absolute inset-0 bg-solar-400 blur-lg opacity-30 animate-pulse" />
-                </div>
-                <div>
-                    <h1 className="text-xl font-bold text-gradient">
-                        SHUNDAO SOLAR
+                <img src={logo} alt="Shundao Solar" className="h-8 w-auto" />
+                <div className="hidden md:block h-8 w-px bg-slate-200 mx-2"></div>
+                <div className="hidden md:block">
+                    <h1 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
+                        Shundao Solar
                     </h1>
-                    <p className="text-xs text-slate-500 -mt-0.5">Solar Monitoring System</p>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                        Raitek version 1.0
+                    </p>
                 </div>
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-4">
-                {/* Weather Widget */}
-                <div className="hidden md:block">
-                    <WeatherWidget />
+            {/* Right: Info Group */}
+            <div className="flex items-center gap-6">
+
+                {/* Weather */}
+                <div className="hidden lg:block">
+                    <WeatherWidget className="bg-transparent border-none shadow-none p-0 gap-2" />
                 </div>
 
-                {/* GPS Location Link */}
-                {googleMapsUrl && (
-                    <a
-                        href={googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/40 rounded-full border border-slate-700/50 hover:bg-slate-800/60 transition-colors group"
-                        title="Xem vị trí trên Google Maps"
-                    >
-                        <MapPin size={14} className="text-red-400 group-hover:text-red-300 transition-colors" />
-                        <span className="text-xs text-slate-300 group-hover:text-white transition-colors">
-                            GPS
+                {/* Divider */}
+                <div className="hidden lg:block h-5 w-px bg-slate-200"></div>
+
+                {/* Location */}
+                <div className="hidden md:flex items-center gap-2 max-w-[200px] xl:max-w-[300px]" title={weather?.locationName}>
+                    <MapPin size={16} className="text-slate-400 shrink-0" />
+                    <div className="flex flex-col leading-tight overflow-hidden">
+                        <span className="text-xs font-semibold text-slate-700 truncate">
+                            {weather?.locationName || "Đang định vị..."}
                         </span>
-                    </a>
-                )}
-
-                {/* Clock */}
-                <div className="hidden md:flex flex-col items-end border-l border-slate-200/50 pl-4 h-8 justify-center">
-                    <p className="text-sm font-semibold text-slate-800 leading-none mb-0.5 tabular-nums">
-                        {time.toLocaleTimeString()}
-                    </p>
-                    <p className="text-xs text-slate-500 leading-none">
-                        {time.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}
-                    </p>
+                        <span className="text-[10px] text-slate-500 truncate">
+                            Vị trí hiện tại
+                        </span>
+                    </div>
                 </div>
 
-                {/* User Profile */}
-                <div className="flex items-center gap-3 pl-4 border-l border-slate-200/50">
-                    <div className="relative">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-solar-500 via-amber-400 to-orange-400 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                            <Sun size={18} />
-                        </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse-glow" />
+                {/* Divider */}
+                <div className="hidden md:block h-5 w-px bg-slate-200"></div>
+
+                {/* Time */}
+                <div className="hidden md:flex items-center gap-3">
+                    <Clock size={16} className="text-slate-400" />
+                    <div className="flex flex-col items-end leading-none">
+                        <span className="text-sm font-bold text-slate-800 tabular-nums">
+                            {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                            {time.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                        </span>
                     </div>
-                    <div className="hidden lg:block">
-                        <p className="text-sm font-medium text-slate-800">Admin</p>
-                        <p className="text-xs text-slate-500">Đang hoạt động</p>
+                </div>
+
+                {/* Divider */}
+                <div className="h-5 w-px bg-slate-200"></div>
+
+                {/* User & Actions */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 cursor-pointer group">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-slate-200 transition-colors">
+                            <User size={16} />
+                        </div>
+                        <div className="hidden xl:block text-left leading-none">
+                            <p className="text-xs font-bold text-slate-700 group-hover:text-slate-900">Admin</p>
+                        </div>
                     </div>
                 </div>
             </div>

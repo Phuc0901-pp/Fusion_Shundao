@@ -71,12 +71,12 @@ func PerformLogin(ctx context.Context) error {
 				chromedp.Location(&url).Do(ctx)
 
 				if !strings.Contains(url, "login") && len(url) > 50 {
-					utils.LogInfo("      ✓ Đăng nhập thành công!")
+					utils.LogInfo("[SUCCESS] Đăng nhập thành công!")
 					return nil
 				}
 			}
 
-			return fmt.Errorf("timeout đăng nhập")
+			return fmt.Errorf("[ERROR] Timeout đăng nhập")
 		}),
 	)
 }

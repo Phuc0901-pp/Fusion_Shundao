@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { SmartLogger } from '../../types';
 import { InverterCard } from './InverterCard';
+import { RenameModal } from '../modals/RenameModal';
 
 interface LoggerGroupProps {
     logger: SmartLogger;
@@ -10,6 +12,9 @@ interface LoggerGroupProps {
 }
 
 export const LoggerGroup: React.FC<LoggerGroupProps> = React.memo(({ logger, selectedInverterId, isSiteFiltered }) => {
+    const [showRename, setShowRename] = useState(false);
+    const [displayName, setDisplayName] = useState(logger.name);
+
     // Filter inverters for this logger based on selection
     const inverters = React.useMemo(() => {
         return selectedInverterId === "all"
@@ -24,7 +29,16 @@ export const LoggerGroup: React.FC<LoggerGroupProps> = React.memo(({ logger, sel
             {/* Logger Header */}
             <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <h4 className="text-base font-semibold text-slate-700">{logger.name}</h4>
+                <h4 className="text-base font-semibold text-slate-700">{displayName}</h4>
+                {logger.dbId && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowRename(true); }}
+                        className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                        title="Đổi tên logger"
+                    >
+                        <Pencil size={12} />
+                    </button>
+                )}
                 <span className="text-xs text-slate-400">({inverters.length} Biến tần)</span>
             </div>
 
@@ -34,6 +48,19 @@ export const LoggerGroup: React.FC<LoggerGroupProps> = React.memo(({ logger, sel
                     <InverterCard key={inverter.id} inverter={inverter} />
                 ))}
             </div>
+
+            {/* Rename Modal */}
+            {showRename && logger.dbId && (
+                <RenameModal
+                    isOpen={showRename}
+                    onClose={() => setShowRename(false)}
+                    entityType="logger"
+                    entityId={logger.dbId}
+                    currentName={displayName}
+                    defaultName={logger.defaultName || logger.id}
+                    onRenamed={(n) => setDisplayName(n)}
+                />
+            )}
         </div>
     );
 });

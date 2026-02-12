@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"fusion/internal/platform/config"
@@ -415,4 +416,88 @@ func fetchDailyRange(endpoint, query string, start, end time.Time, step int, cal
 			callback(ts, val)
 		}
 	}
+}
+
+// fetchInverterPowerData fetches today's DC + AC power data for a specific inverter
+func fetchInverterPowerData(deviceID string) []InverterPowerPoint {
+	endpoint := config.App.System.VMEndpoint
+	now := time.Now()
+	loc := time.FixedZone("UTC+7", 7*60*60)
+
+	// Start at 06:00, end at 18:00 (solar hours only)
+	start := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, time.Local)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, time.Local)
+	end := now
+	if end.After(endOfDay) {
+		end = endOfDay
+	}
+
+	// Map: time string -> InverterPowerPoint
+	pointsMap := make(map[string]*InverterPowerPoint)
+	var timeKeys []string // preserve order
+
+	// Helper to fetch a single metric and populate the map
+	fetchMetric := func(metricName string, setter func(p *InverterPowerPoint, val float64)) {
+		query := fmt.Sprintf(`shundao_inverter{name="%s", device="%s"}`, metricName, deviceID)
+		u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=300",
+			endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
+
+		resp, err := http.Get(u)
+		if err != nil {
+			return
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+
+		var result struct {
+			Data struct {
+				Result []struct {
+					Values [][]interface{} `json:"values"`
+				} `json:"result"`
+			} `json:"data"`
+		}
+
+		if json.Unmarshal(body, &result) != nil {
+			return
+		}
+
+		if len(result.Data.Result) > 0 {
+			for _, v := range result.Data.Result[0].Values {
+				if len(v) >= 2 {
+					tsFloat, _ := v[0].(float64)
+					valStr, _ := v[1].(string)
+
+					var val float64
+					fmt.Sscanf(valStr, "%f", &val)
+
+					ts := time.Unix(int64(tsFloat), 0).In(loc)
+					key := ts.Format("15:04")
+
+					if _, exists := pointsMap[key]; !exists {
+						pointsMap[key] = &InverterPowerPoint{Time: key}
+						timeKeys = append(timeKeys, key)
+					}
+					setter(pointsMap[key], val)
+				}
+			}
+		}
+	}
+
+	// Công suất thuần (DC) → đường cam
+	fetchMetric("dc_power_kw", func(p *InverterPowerPoint, val float64) {
+		p.DcPower = &val
+	})
+	// Tổng công suất đầu vào → đường xanh
+	fetchMetric("p_out_kw", func(p *InverterPowerPoint, val float64) {
+		p.AcPower = &val
+	})
+
+	// Build sorted result
+	sort.Strings(timeKeys)
+	result := make([]InverterPowerPoint, 0, len(timeKeys))
+	for _, key := range timeKeys {
+		result = append(result, *pointsMap[key])
+	}
+	return result
 }

@@ -62,13 +62,13 @@ func (c *Client) PushMetrics(data string) error {
 	url := c.Config.Endpoint + "/api/v1/import/prometheus"
 	resp, err := c.HTTPClient.Post(url, "text/plain", strings.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("failed to push metrics: %w", err)
+		return fmt.Errorf("[ERROR] Failed to push metrics: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("push failed with status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("[ERROR] Push failed with status %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
@@ -80,20 +80,20 @@ func (c *Client) DeleteMetrics(matchPattern string) error {
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create delete request: %w", err)
+		return fmt.Errorf("[ERROR] Failed to create delete request: %w", err)
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to delete metrics: %w", err)
+		return fmt.Errorf("[ERROR] Failed to delete metrics: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("delete failed with status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("[ERROR] Delete failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	utils.LogInfo("Deleted old shundao_* metrics")
+	utils.LogInfo("[SUCCESS] Deleted old shundao_* metrics")
 	return nil
 }
 
@@ -224,9 +224,9 @@ func (c *Client) PushAllFromDirectory(outputDir string) error {
 				if len(allMetrics) >= batchSize {
 					payload := strings.Join(allMetrics, "\n")
 					if err := c.PushMetrics(payload); err != nil {
-						utils.LogError("⚠️  Lỗi push batch (%d files): %v", len(allMetrics), err)
+						utils.LogError("[ERROR] Lỗi push batch (%d files): %v", len(allMetrics), err)
 					} else {
-						utils.LogDebug("Pushed batch of %d files to VM", len(allMetrics))
+						utils.LogDebug("[SUCCESS] Pushed batch of %d files to VM", len(allMetrics))
 					}
 					// Reset batch
 					allMetrics = nil
@@ -247,14 +247,14 @@ func (c *Client) PushAllFromDirectory(outputDir string) error {
 		if err := c.PushMetrics(payload); err != nil {
 			return err
 		}
-		utils.LogDebug("Pushed final batch of metrics")
+		utils.LogDebug("[SUCCESS] Pushed final batch of metrics")
 	}
 
 	if fileCount == 0 {
-		return fmt.Errorf("no metrics found in %s", outputDir)
+		return fmt.Errorf("[ERROR] No metrics found in %s", outputDir)
 	}
 
-	utils.LogInfo("Successfully pushed %d files to VictoriaMetrics", fileCount)
+	utils.LogInfo("[SUCCESS] Successfully pushed %d files to VictoriaMetrics", fileCount)
 	return nil
 }
 
@@ -311,8 +311,8 @@ func PushToVictoriaMetrics() {
 	client := NewClient(endpoint)
 
 	if err := client.PushAllFromDirectory(outputDir); err != nil {
-		utils.LogError("⚠️  Lỗi push VM: %v", err)
+		utils.LogError("[ERROR] Lỗi push VM: %v", err)
 	} else {
-		utils.LogInfo("✅ Push VictoriaMetrics thành công!")
+		utils.LogInfo("[SUCCESS] Push VictoriaMetrics thành công!")
 	}
 }

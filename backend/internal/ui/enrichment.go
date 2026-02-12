@@ -15,6 +15,7 @@ import (
 
 	"fusion/internal/platform/config"
 	"fusion/internal/platform/utils"
+	"fusion/internal/database"
 )
 
 // deepCopySites creates a deep copy of the sites slice to avoid race conditions
@@ -51,10 +52,26 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 		if len(parts) >= 1 && parts[0] != "." {
 			siteName := parts[0]
 			if _, exists := sitesMap[siteName]; !exists {
+				// Default DbID from Site Name (folder)
+				dbID := utils.GenerateUUID(siteName)
+				
+				// Try to read Correct DbID from metadata if available
+				metaPath := filepath.Join(rootDir, siteName, "site_meta.json")
+				if metaBytes, err := os.ReadFile(metaPath); err == nil {
+					var meta struct {
+						ID string `json:"id"`
+					}
+					if json.Unmarshal(metaBytes, &meta) == nil && meta.ID != "" {
+						dbID = meta.ID
+					}
+				}
+
 				sitesMap[siteName] = &SiteNode{
-					ID:      siteName,
-					Name:    strings.ReplaceAll(siteName, "_", " "),
-					Loggers: make([]LoggerNode, 0),
+					ID:          siteName,
+					DbID:        dbID, // Use consistent ID
+					Name:        strings.ReplaceAll(siteName, "_", " "),
+					DefaultName: strings.ReplaceAll(siteName, "_", " "),
+					Loggers:     make([]LoggerNode, 0),
 				}
 			}
 
@@ -66,9 +83,23 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 				name = strings.ReplaceAll(name, "SmartloggerStation", "Smartlogger Station") // Fix inconsistent naming
 				name = strings.ReplaceAll(name, "Sattion", "Station") // Fix typo in folder name
 				
+				// Read SmartLogger ID from JSON if available
+				slDbID := ""
+				slJsonPath := filepath.Join(path, "smartLogger_data.json")
+				if slBytes, err := os.ReadFile(slJsonPath); err == nil {
+					var slMeta struct {
+						DeviceID string `json:"device_id"`
+					}
+					if json.Unmarshal(slBytes, &slMeta) == nil {
+						slDbID = slMeta.DeviceID
+					}
+				}
+
 				sitesMap[siteName].Loggers = append(sitesMap[siteName].Loggers, LoggerNode{
 					ID:        slName,
+					DbID:      slDbID,
 					Name:      name,
+					DefaultName: name,
 					Inverters: make([]InverterNode, 0),
 				})
 			}
@@ -160,9 +191,22 @@ func fetchSitesFromOutput(rootDir string) []SiteNode {
 						cleanName = re.ReplaceAllString(cleanName, "")
 						cleanName = strings.TrimSpace(cleanName)
 
+						// Read DB ID from miniData (need to extract it first)
+						// Re-read data.json for ID since miniData didn't have it
+						dbID := ""
+						var idMeta struct {
+							ID string `json:"id"`
+						}
+						// optimization: reuse dataBytes
+						if json.Unmarshal(dataBytes, &idMeta) == nil {
+							dbID = idMeta.ID
+						}
+
 						sitesMap[siteName].Loggers[i].Inverters = append(sitesMap[siteName].Loggers[i].Inverters, InverterNode{
 							ID:           invName,
+							DbID:         dbID,
 							Name:         cleanName,
+							DefaultName:  cleanName,
 							DeviceStatus: status,
 							StartupTime:  startupTime,
 							ShutdownTime: shutdownTime,
@@ -486,5 +530,50 @@ func toFloat64(v interface{}) (float64, bool) {
 		return f, err == nil
 	default:
 		return 0, false
+	}
+}
+
+// enrichSitesWithCustomNames fetches custom configs from DB and updates the nodes
+func enrichSitesWithCustomNames(sites *[]SiteNode) {
+	// Fetch all custom configs (ID -> EntityConfig)
+	configs, err := database.GetAllEntityConfigs()
+	if err != nil {
+		utils.LogError("[ERROR] Failed to fetch custom configs from DB: %v", err)
+		return
+	}
+
+	if len(configs) == 0 {
+		return
+	}
+
+	for i := range *sites {
+		site := &(*sites)[i]
+		// Update Site Name
+		if cfg, ok := configs[site.DbID]; ok && cfg.Name != "" {
+			site.Name = cfg.Name
+		} else if cfg, ok := configs[site.ID]; ok && cfg.Name != "" {
+			site.Name = cfg.Name
+		}
+
+		for j := range site.Loggers {
+			logger := &site.Loggers[j]
+			// Update Logger Name
+			if cfg, ok := configs[logger.DbID]; ok && cfg.Name != "" {
+				logger.Name = cfg.Name
+			}
+
+			for k := range logger.Inverters {
+				inv := &logger.Inverters[k]
+				// Update Inverter Name & StringSet
+				if cfg, ok := configs[inv.DbID]; ok {
+					if cfg.Name != "" {
+						inv.Name = cfg.Name
+					}
+					if cfg.StringSet != "" {
+						inv.NumberStringSet = cfg.StringSet
+					}
+				}
+			}
+		}
 	}
 }

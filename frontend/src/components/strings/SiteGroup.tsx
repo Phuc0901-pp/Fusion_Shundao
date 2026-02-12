@@ -1,7 +1,8 @@
-import React from 'react';
-import { Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Zap, Pencil } from 'lucide-react';
 import type { Site } from '../../types';
 import { LoggerGroup } from './LoggerGroup';
+import { RenameModal } from '../modals/RenameModal';
 
 interface SiteGroupProps {
     site: Site;
@@ -11,6 +12,9 @@ interface SiteGroupProps {
 }
 
 export const SiteGroup: React.FC<SiteGroupProps> = React.memo(({ site, selectedLoggerId, selectedInverterId, selectedSiteId }) => {
+    const [showRename, setShowRename] = useState(false);
+    const [displayName, setDisplayName] = useState(site.name);
+
     // Filter loggers for this site based on selection
     const loggers = React.useMemo(() => {
         return selectedLoggerId === "all"
@@ -28,7 +32,16 @@ export const SiteGroup: React.FC<SiteGroupProps> = React.memo(({ site, selectedL
                     <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
                         <Zap size={20} />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800">{site.name}</h3>
+                    <h3 className="text-lg font-bold text-slate-800">{displayName}</h3>
+                    {site.dbId && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowRename(true); }}
+                            className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                            title="Đổi tên trạm"
+                        >
+                            <Pencil size={14} />
+                        </button>
+                    )}
                     <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">
                         Mã trạm: {site.id}
                     </span>
@@ -44,6 +57,19 @@ export const SiteGroup: React.FC<SiteGroupProps> = React.memo(({ site, selectedL
                     isSiteFiltered={selectedSiteId !== "all"}
                 />
             ))}
+
+            {/* Rename Modal */}
+            {showRename && site.dbId && (
+                <RenameModal
+                    isOpen={showRename}
+                    onClose={() => setShowRename(false)}
+                    entityType="site"
+                    entityId={site.dbId}
+                    currentName={displayName}
+                    defaultName={site.defaultName || site.id}
+                    onRenamed={(n) => setDisplayName(n)}
+                />
+            )}
         </div>
     );
 });

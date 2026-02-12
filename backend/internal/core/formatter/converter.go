@@ -276,7 +276,7 @@ func mergeSignals(target map[string]interface{}, sourceList []interface{}) {
 			} else {
 				// Debug missing ID
 				if i < 3 { // Log first few failures only
-					utils.LogDebug("DEBUG: Item %d has no valid ID. Keys: %v", i, getKeys(sMap))
+					utils.LogDebug("[DEBUG] Item %d has no valid ID. Keys: %v", i, getKeys(sMap))
 				}
 			}
 
@@ -286,7 +286,7 @@ func mergeSignals(target map[string]interface{}, sourceList []interface{}) {
 			}
 		} else {
 			if i < 3 {
-				utils.LogDebug("DEBUG: Item %d is not a map. Type: %T", i, s)
+				utils.LogDebug("[DEBUG] Item %d is not a map. Type: %T", i, s)
 			}
 		}
 	}
@@ -595,7 +595,7 @@ func FormatUnifiedSensorData(
 
 			// We will just use 0 for now as safe default, user can refine if they need specific "invalid" markers
 			if strings.Contains(field, "daily_irradiation2") {
-				output.Fields[field] = -0.001
+				output.Fields[field] = 0.0
 			} else {
 				// Check if user wants 3276.7 as 'invalid' or defaults?
 				// Example has 3276.7 for wind_speed_ms (likely sensor error/disconnected)

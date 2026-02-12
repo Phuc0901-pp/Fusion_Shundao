@@ -1,29 +1,57 @@
-import { RefreshCw } from 'lucide-react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { RefreshCw, Zap } from 'lucide-react';
 import { ProductionChart } from '../components/charts/ProductionChart';
 import { AlertBox } from '../components/widgets/AlertBox';
 import { StringDiagram } from '../components/strings/StringDiagram';
 import { Badge } from '../components/ui/Badge';
-import { fetchDashboardData } from '../services/dashboardService';
 import { ProductionSection } from '../components/dashboard/ProductionSection';
-import { EnvironmentalSection } from '../components/dashboard/EnvironmentalSection';
 import { DeviceSection } from '../components/dashboard/DeviceSection';
 import { DashboardSection } from '../components/dashboard/DashboardSection';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { Zap } from 'lucide-react';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { WelcomeOverlay } from '../components/common/WelcomeOverlay';
+import { LoadingScreen } from '../components/common/LoadingScreen';
+import { useDashboardLogic } from '../hooks/useDashboardLogic';
 
 export const Overview = () => {
-    const { data, isLoading, isFetching, refetch } = useQuery({
-        queryKey: ['dashboardData'],
-        queryFn: fetchDashboardData,
-        refetchInterval: 10000, // Fast update: every 10 seconds
-        placeholderData: keepPreviousData,
-    });
+    const {
+        data,
+        isLoading,
+        isFetching,
+        isError,
+        error,
+        refetch,
+        smartAlerts,
+        sites,
+        kpi,
+        sensors,
+        meters,
+        productionData
+    } = useDashboardLogic();
 
-    const { alerts = [], sites = [], kpi, sensors = [], meters = [], productionData = [] } = data || {};
+    if (isError) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[80vh] space-y-4 animate-fade-in">
+                <div className="p-4 bg-red-50 rounded-full">
+                    <Zap size={48} className="text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800">Không thể kết nối đến máy chủ</h2>
+                <p className="text-slate-500 max-w-md text-center">
+                    {error instanceof Error ? error.message : "Đã xảy ra lỗi không xác định."}
+                </p>
+                <button
+                    onClick={() => refetch()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                    <RefreshCw size={18} />
+                    Thử lại
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
+            {isLoading && !data && <LoadingScreen />}
+            <WelcomeOverlay />
             {/* Header */}
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">Tổng Quan Hệ Thống</h2>
@@ -41,9 +69,8 @@ export const Overview = () => {
             {/* Section 1: ALL Metrics in ONE row */}
             <ErrorBoundary sectionName="Hiệu Quả Vận Hành">
                 <DashboardSection title="Hiệu Quả Vận Hành" icon={Zap}>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <ProductionSection kpi={kpi} sites={sites} isLoading={isLoading} />
-                        <EnvironmentalSection kpi={kpi} sites={sites} isLoading={isLoading} />
                     </div>
                 </DashboardSection>
             </ErrorBoundary>
@@ -60,7 +87,7 @@ export const Overview = () => {
                 {/* RIGHT: Alert Log */}
                 <div className="lg:col-span-1">
                     <ErrorBoundary sectionName="Cảnh báo">
-                        <AlertBox alerts={alerts} sites={sites} loading={isLoading} />
+                        <AlertBox alerts={smartAlerts} sites={sites} loading={isLoading} />
                     </ErrorBoundary>
                 </div>
             </div>

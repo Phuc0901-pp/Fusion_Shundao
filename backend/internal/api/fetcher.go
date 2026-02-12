@@ -161,100 +161,110 @@ func (f *Fetcher) EnableNetwork(ctx context.Context) error {
 // WaitAndFetchSiteData waits for page load and fetches site data
 func (f *Fetcher) WaitAndFetchSiteData(ctx context.Context) (string, error) {
 	var siteData string
+	var err error
 
-	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
-		utils.LogInfo("[Chờ] Đang load trang (15 giây)...")
-		time.Sleep(15 * time.Second)
+	err = chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		utils.LogInfo("[INFO] Đang đợi Token (tối đa 60s)...")
 
-		// Check if token captured
-		f.mu.Lock()
-		if f.roarand == "" {
-			f.mu.Unlock()
-			utils.LogWarn("⚠️ Chưa bắt được Token. Thử reload trang...")
-			if err := chromedp.Reload().Do(ctx); err != nil {
-				utils.LogError("Lỗi reload: %v", err)
-			}
-			time.Sleep(10 * time.Second)
-		} else {
-			f.mu.Unlock()
-		}
+		// Polling mechanism
+		timeout := time.After(60 * time.Second)
+		reloadTimer := time.After(20 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
 
-		// Try to extract Roarand from browser if not captured
-		f.mu.Lock()
-		hasToken := f.roarand != ""
-		f.mu.Unlock()
+		hasReloaded := false
 
-		if !hasToken {
-			// Try to get Roarand from cookies or window object
-			var token string
-			chromedp.Evaluate(`
-				(function() {
-					// Try window.roarand
-					if (window.roarand) return window.roarand;
-					
-					// Try to find in cookies
-					var cookies = document.cookie.split(';');
-					for (var i = 0; i < cookies.length; i++) {
-						var cookie = cookies[i].trim();
-						if (cookie.toLowerCase().startsWith('roarand=')) {
-							return cookie.substring(8);
-						}
-					}
-					
-					// Try localStorage
-					var ls = localStorage.getItem('roarand');
-					if (ls) return ls;
-					
-					// Try sessionStorage
-					var ss = sessionStorage.getItem('roarand');
-					if (ss) return ss;
-					
-					return '';
-				})()
-			`, &token).Do(ctx)
+		for {
+			select {
+			case <-timeout:
+				return fmt.Errorf("timeout waiting for Roarand token")
 
-			if token != "" {
+			case <-reloadTimer:
 				f.mu.Lock()
-				f.roarand = token
+				hasToken := f.roarand != ""
 				f.mu.Unlock()
-				utils.LogInfo(">>> Lấy được Roarand từ browser: %s...", token[:min(30, len(token))])
-			} else {
-				utils.LogWarn(">>> Không tìm thấy Roarand token trong browser")
+
+				if !hasToken && !hasReloaded {
+					utils.LogWarn("⚠️ Chưa bắt được Token sau 20s. Thử reload trang...")
+					if err := chromedp.Reload().Do(ctx); err != nil {
+						utils.LogError("Lỗi reload: %v", err)
+					}
+					hasReloaded = true
+				}
+
+			case <-ticker.C:
+				// 1. Check if we already have the token
+				f.mu.Lock()
+				token := f.roarand
+				f.mu.Unlock()
+
+				if token != "" {
+					utils.LogInfo(">>> [SUCCESS] Token đã sẵn sàng!")
+					goto TokenFound
+				}
+
+				// 2. Try to extract from browser context (cookies, localStorage, window)
+				var extractedToken string
+				err := chromedp.Evaluate(`
+					(function() {
+						if (window.roarand) return window.roarand;
+						var cookies = document.cookie.split(';');
+						for (var i = 0; i < cookies.length; i++) {
+							var cookie = cookies[i].trim();
+							if (cookie.toLowerCase().startsWith('roarand=')) {
+								return cookie.substring(8);
+							}
+						}
+						var ls = localStorage.getItem('roarand');
+						if (ls) return ls;
+						var ss = sessionStorage.getItem('roarand');
+						if (ss) return ss;
+						return '';
+					})()
+				`, &extractedToken).Do(ctx)
+
+				if err == nil && extractedToken != "" {
+					f.mu.Lock()
+					f.roarand = extractedToken
+					f.mu.Unlock()
+					utils.LogInfo(">>> [SUCCESS] Lấy được Roarand từ browser script!")
+					goto TokenFound
+				}
 			}
 		}
 
-		// Try to get response from captured requests
+	TokenFound:
+		// Try to get response from captured requests first
 		f.mu.Lock()
 		ids := make([]network.RequestID, len(f.requestIDs))
 		copy(ids, f.requestIDs)
 		f.mu.Unlock()
 
-		utils.LogInfo("      Số API locate-tree đã phát hiện: %d", len(ids))
-
-		for i, reqID := range ids {
-			utils.LogDebug("      Thử lấy body từ request %d...", i+1)
-
-			body, err := network.GetResponseBody(reqID).Do(ctx)
-			if err != nil {
-				continue
-			}
-
-			if len(body) > 0 && body[0] == '{' {
-				siteData = string(body)
-				utils.LogInfo("      ✓ Lấy được response! Length: %d bytes", len(body))
-				break
+		if len(ids) > 0 {
+			utils.LogInfo("      Số API locate-tree đá phát hiện: %d", len(ids))
+			for i, reqID := range ids {
+				utils.LogDebug("      Thử lấy body từ request %d...", i+1)
+				body, err := network.GetResponseBody(reqID).Do(ctx)
+				if err != nil {
+					continue
+				}
+				if len(body) > 0 && body[0] == '{' {
+					siteData = string(body)
+					utils.LogInfo("      ✓ Lấy được response từ network log! Length: %d bytes", len(body))
+					break
+				}
 			}
 		}
 
-		// If no data, try calling API directly with Roarand
+		// If no data from network logs, call API directly
 		if siteData == "" {
 			f.mu.Lock()
 			token := f.roarand
 			f.mu.Unlock()
 
 			if token != "" {
-				utils.LogInfo("      Thử gọi API trực tiếp...")
-				siteData = f.callAPIDirectly(ctx, token, "NE=50987774")
+				utils.LogInfo("      Token OK. Gọi API trực tiếp để lấy dữ liệu site...")
+				siteData = f.callAPIDirectly(ctx, token, "NE=50987774") // Default or root ID
 			}
 		}
 

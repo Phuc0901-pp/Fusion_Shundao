@@ -45,44 +45,46 @@ export interface StringData {
 
 export interface Inverter {
     id: string;
+    dbId?: string;
     name: string;
+    defaultName?: string;
+    numberStringSet?: string;
     deviceStatus: string;
     strings: StringData[];
-    // Power metrics
-    dcPowerKw?: number;
     pOutKw?: number;
-    ratedPowerKw?: number;
-    pPeakTodayKw?: number;
     powerFactor?: number;
-    qOutKvar?: number;
-    // Energy metrics
-    eDailyKwh?: number;
-    eTotalKwh?: number;
-    // Grid metrics
-    gridFreqHz?: number;
-    gridVaV?: number;
-    gridVbV?: number;
-    gridVcV?: number;
     gridIaA?: number;
-    gridIbA?: number;
-    gridIcA?: number;
-    // Temperature & other
-    internalTempDegC?: number;
-    insulationResistanceMO?: number;
-    outputMode?: string;
+    gridVaV?: number;
     startupTime?: string;
+    insulationResistanceMO?: number;
+    eDailyKwh?: number;
+    qOutKvar?: number;
+    gridFreqHz?: number;
+    gridIbA?: number;
+    gridVbV?: number;
     shutdownTime?: string;
+    dcPowerKw?: number;
+    eTotalKwh?: number;
+    ratedPowerKw?: number;
+    outputMode?: string;
+    gridIcA?: number;
+    gridVcV?: number;
+    internalTempDegC?: number;
 }
 
 export interface SmartLogger {
     id: string;
+    dbId?: string;
     name: string;
+    defaultName?: string;
     inverters: Inverter[];
 }
 
 export interface Site {
     id: string;
+    dbId?: string;
     name: string;
+    defaultName?: string;
     loggers: SmartLogger[];
     kpi?: KPI;
 }
@@ -120,4 +122,26 @@ export interface ProductionDataPoint {
     site2DailyEnergy: number;
     site2GridFeedIn: number;
     site2Irradiation: number;
+}
+
+// Extended alert with device info
+export interface DeviceAlert extends AlertMessage {
+    deviceId?: string;
+    deviceType?: 'inverter' | 'sensor' | 'meter' | 'system';
+}
+
+// Aggregated API response from /dashboard
+export interface DashboardResponse {
+    alerts: DeviceAlert[];
+    sites: Site[];
+    kpi: KPI;
+    sensors: Sensor[];
+    meters: Meter[];
+    productionData: ProductionDataPoint[];
+    siteData: {
+        all: ProductionDataPoint[];
+        siteA: ProductionDataPoint[];
+        siteB: ProductionDataPoint[];
+    };
+    chartData: ProductionDataPoint[];
 }

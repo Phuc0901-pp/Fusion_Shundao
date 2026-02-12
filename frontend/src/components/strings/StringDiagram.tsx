@@ -10,7 +10,7 @@ interface StringDiagramProps {
     loading?: boolean;
 }
 
-export const StringDiagram: React.FC<StringDiagramProps> = ({ sites = [], loading = false }) => {
+const StringDiagramComponent: React.FC<StringDiagramProps> = ({ sites = [], loading = false }) => {
     // Selection state - Default to 'all' for "Show Full"
     const [selectedSiteId, setSelectedSiteId] = React.useState<string>("all");
     const [selectedLoggerId, setSelectedLoggerId] = React.useState<string>("all");
@@ -158,3 +158,5 @@ export const StringDiagram: React.FC<StringDiagramProps> = ({ sites = [], loadin
         </Card>
     );
 };
+
+export const StringDiagram = React.memo(StringDiagramComponent);
