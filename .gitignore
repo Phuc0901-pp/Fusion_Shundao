@@ -26,3 +26,7 @@ dist/
 .idea/
 
 
+
+# Deployment artifacts
+*.tar
+fusion_images.tar

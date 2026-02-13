@@ -15,7 +15,6 @@ import (
 
 	"fusion/internal/platform/config"
 	"fusion/internal/platform/utils"
-	"fusion/internal/database"
 )
 
 // deepCopySites creates a deep copy of the sites slice to avoid race conditions
@@ -533,39 +532,35 @@ func toFloat64(v interface{}) (float64, bool) {
 	}
 }
 
-// enrichSitesWithCustomNames fetches custom configs from DB and updates the nodes
+// enrichSitesWithCustomNames fetches custom configs from Cache and updates the nodes
 func enrichSitesWithCustomNames(sites *[]SiteNode) {
-	// Fetch all custom configs (ID -> EntityConfig)
-	configs, err := database.GetAllEntityConfigs()
-	if err != nil {
-		utils.LogError("[ERROR] Failed to fetch custom configs from DB: %v", err)
-		return
-	}
+	configCacheLock.RLock()
+	defer configCacheLock.RUnlock()
 
-	if len(configs) == 0 {
+	if len(entityConfigCache) == 0 {
 		return
 	}
 
 	for i := range *sites {
 		site := &(*sites)[i]
 		// Update Site Name
-		if cfg, ok := configs[site.DbID]; ok && cfg.Name != "" {
+		if cfg, ok := entityConfigCache[site.DbID]; ok && cfg.Name != "" {
 			site.Name = cfg.Name
-		} else if cfg, ok := configs[site.ID]; ok && cfg.Name != "" {
+		} else if cfg, ok := entityConfigCache[site.ID]; ok && cfg.Name != "" {
 			site.Name = cfg.Name
 		}
 
 		for j := range site.Loggers {
 			logger := &site.Loggers[j]
 			// Update Logger Name
-			if cfg, ok := configs[logger.DbID]; ok && cfg.Name != "" {
+			if cfg, ok := entityConfigCache[logger.DbID]; ok && cfg.Name != "" {
 				logger.Name = cfg.Name
 			}
 
 			for k := range logger.Inverters {
 				inv := &logger.Inverters[k]
 				// Update Inverter Name & StringSet
-				if cfg, ok := configs[inv.DbID]; ok {
+				if cfg, ok := entityConfigCache[inv.DbID]; ok {
 					if cfg.Name != "" {
 						inv.Name = cfg.Name
 					}

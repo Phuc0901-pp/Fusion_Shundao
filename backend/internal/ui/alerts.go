@@ -59,28 +59,32 @@ func generateDeviceAlerts(sites []SiteNode, now time.Time) []AlertMessage {
 					}
 				}
 
-				if shouldAlert {
-					alerts = append(alerts, AlertMessage{
-						ID:        fmt.Sprintf("inv-%s-%d", inverter.ID, ts),
-						Timestamp: ts,
-						Level:     level,
-						Message:   msg,
-						Source:    fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
-					})
-				}
-
-				// Check for zero power when should be producing (6am - 6pm)
-				if hour >= 6 && hour <= 18 {
-					if inverter.POutKw == 0 && status == "grid connected" {
+					if shouldAlert {
 						alerts = append(alerts, AlertMessage{
-							ID:        fmt.Sprintf("inv-nopower-%s-%d", inverter.ID, ts),
-							Timestamp: ts,
-							Level:     "warning",
-							Message:   "Công suất đầu ra = 0 kW trong giờ làm việc",
-							Source:    fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
+							ID:         fmt.Sprintf("inv-%s-%d", inverter.ID, ts),
+							Timestamp:  ts,
+							Level:      level,
+							Message:    msg,
+							Source:     fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
+							DeviceID:   inverter.ID,
+							DeviceType: "inverter",
 						})
 					}
-				}
+
+					// Check for zero power when should be producing (6am - 6pm)
+					if hour >= 6 && hour <= 18 {
+						if inverter.POutKw == 0 && status == "grid connected" {
+							alerts = append(alerts, AlertMessage{
+								ID:         fmt.Sprintf("inv-nopower-%s-%d", inverter.ID, ts),
+								Timestamp:  ts,
+								Level:      "warning",
+								Message:    "Công suất đầu ra = 0 kW trong giờ làm việc",
+								Source:     fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
+								DeviceID:   inverter.ID,
+								DeviceType: "inverter",
+							})
+						}
+					}
 			}
 		}
 	}

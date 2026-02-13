@@ -8,9 +8,9 @@ interface WeatherWidgetProps {
 
 const WeatherIcon = ({ condition, className }: { condition: string, className?: string }) => {
     switch (condition) {
-        case 'sunny': return <Sun className={cn("text-yellow-400", className)} />;
+        case 'sunny': return <Sun className={cn("text-red-600", className)} />;
         case 'clear': return <Moon className={cn("text-black", className)} />;
-        case 'cloudy-sun': return <CloudSun className={cn("text-yellow-200", className)} />;
+        case 'cloudy-sun': return <CloudSun className={cn("text-red-600", className)} />;
         case 'cloudy-moon': return <CloudMoon className={cn("text-black", className)} />;
         case 'fog': return <CloudFog className={cn("text-slate-400", className)} />;
         case 'rain': return <CloudRain className={cn("text-blue-400", className)} />;

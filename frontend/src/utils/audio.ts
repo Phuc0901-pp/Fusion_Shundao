@@ -77,25 +77,30 @@ function playOnlineTTS(text: string) {
 }
 
 export function speakAlert(message: string) {
-    try {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
+    // Disabled by user request
+    return;
 
-            if (vietnameseVoice) {
+    // Original code below preserved but unreachable
+    /*
+    if (typeof window !== 'undefined') {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Stop previous
+            
+            // Short delay to ensure cancel works
+            setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
-                utterance.lang = 'vi-VN';
-                utterance.voice = vietnameseVoice;
+                
+                // Prefer Vietnamese voice
+                if (vietnameseVoice) {
+                    utterance.voice = vietnameseVoice;
+                }
+                
                 utterance.rate = 1.0;
-                utterance.volume = 1.0;
                 utterance.pitch = 1.0;
+                utterance.volume = 1.0;
                 window.speechSynthesis.speak(utterance);
-            } else {
-                playOnlineTTS(message);
-            }
-        } else {
-            playOnlineTTS(message);
+            }, 10);
         }
-    } catch {
-        playOnlineTTS(message);
     }
+    */
 }

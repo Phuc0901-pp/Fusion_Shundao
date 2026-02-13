@@ -11,8 +11,8 @@ import (
 
 	"fusion/internal/api"
 	"fusion/internal/browser"
-	"fusion/internal/database"
 	"fusion/internal/core/formatter"
+	"fusion/internal/database"
 	"fusion/internal/login"
 	"fusion/internal/platform/config"
 	"fusion/internal/platform/utils"
@@ -32,6 +32,9 @@ type DeviceTask struct {
 }
 
 func main() {
+	// 0. Initialize Time (NTP)
+	utils.InitTimeProvider()
+
 	// 1. Initialize System
 	if err := config.LoadConfig(); err != nil {
 		utils.LogError("[ERROR] Failed to load config: %v", err)
@@ -43,9 +46,9 @@ func main() {
 	// 2. Init Database
 	if err := database.InitDB(); err != nil {
 		utils.LogError("[ERROR] Failed to init database: %v", err)
-		// We might want to exit or continue depending on severity. 
+		// We might want to exit or continue depending on severity.
 		// For now, let's log and maybe exit if strict.
-		// os.Exit(1) 
+		// os.Exit(1)
 	}
 
 	utils.LogInfo("=== FusionSolar Site Data Fetcher (Continuous 24/7) ===")
@@ -105,7 +108,7 @@ func main() {
 		victoriametrics.PushToVictoriaMetrics()
 
 		// 4. Wait 5 Minutes
-		utils.LogInfo("[WAITTING] CHỜ 5 PHÚT (TIẾP TỤC LÚC " + time.Now().Add(5*time.Minute).Format("15:04:05") + ")")
+		utils.LogInfo("[WAITTING] CHỜ 5 PHÚT (TIẾP TỤC LÚC " + utils.GetNow().Add(5*time.Minute).Format("15:04:05") + ")")
 		time.Sleep(5 * time.Minute)
 	}
 }
@@ -124,7 +127,6 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 
 		// 1. Station Overview
 		fetchStationOverview(ctx, fetcher, s, siteDisplay)
-
 
 		// [DB] Save Site
 		// Use Generated UUID for Site ID to match JSON output
@@ -166,7 +168,6 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 				fmtSlData := formatter.FormatSmartLoggerData(slInfoData, sl.NodeName, sl.ElementDn, slChildren)
 				saveFormattedData(fmtSlData, siteDisplay, slFolder, "smartLogger_data.json")
 			}
-
 
 			// [DB] Save SmartLogger
 			// KEEP ID as ElementDn (NE=...) as requested
@@ -211,7 +212,6 @@ func processAllSites(ctx context.Context, fetcher *api.Fetcher) {
 				} else {
 					dTypeForDB = "Sensor"
 				}
-
 
 				// [DB] Save Device
 				// Use Generated UUID for Device ID

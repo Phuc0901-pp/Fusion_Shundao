@@ -77,11 +77,15 @@ export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSit
         return data.slice(zoomStart, zoomEnd);
     }, [data, zoomStart, zoomEnd]);
 
-    // Calculate max power to determine left axis ticks
-    const maxPower = Math.max(
-        ...visibleData.map(d => Math.max(d.site1DailyEnergy || 0, d.site2DailyEnergy || 0)),
-        100
-    );
+    // Calculate max power based on VISIBLE sites only
+    const maxPower = useMemo(() => {
+        let max = 100; // default minimum
+        visibleData.forEach(d => {
+            if (visibleSites.site1) max = Math.max(max, d.site1DailyEnergy || 0);
+            if (visibleSites.site2) max = Math.max(max, d.site2DailyEnergy || 0);
+        });
+        return max;
+    }, [visibleData, visibleSites]);
 
     // Generate exactly 6 ticks for left axis
     const leftTicks = getNiceTicks(maxPower, 6);
@@ -183,21 +187,65 @@ export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSit
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '5px' }} />
 
-                    {/* SHUNDAO 1 */}
-                    {visibleSites.site1 && (
-                        <>
-                            <Area yAxisId="left" type="monotone" dataKey="site1DailyEnergy" name="Shundao 1 Công suất " stroke="#22c55e" strokeWidth={2} fill="url(#site1PowerGrad)" dot={false} activeDot={{ r: 4 }} connectNulls={true} />
-                            <Area yAxisId="right" type="monotone" dataKey="site1Irradiation" name="Shundao 1 Bức xạ " stroke="#fb923c" strokeWidth={2} fill="url(#site1IrradGrad)" dot={false} activeDot={{ r: 4 }} connectNulls={true} />
-                        </>
-                    )}
+                    {/* SHUNDAO 1 - Used HIDE prop to avoid unmount jitter */}
+                    <Area
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="site1DailyEnergy"
+                        name="Shundao 1 Công suất "
+                        stroke="#22c55e"
+                        strokeWidth={2}
+                        fill="url(#site1PowerGrad)"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls={true}
+                        hide={!visibleSites.site1} // Changed from conditional render
+                        isAnimationActive={false} // Disable animation for smoother toggle
+                    />
+                    <Area
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="site1Irradiation"
+                        name="Shundao 1 Bức xạ "
+                        stroke="#fb923c"
+                        strokeWidth={2}
+                        fill="url(#site1IrradGrad)"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls={true}
+                        hide={!visibleSites.site1}
+                        isAnimationActive={false}
+                    />
 
                     {/* SHUNDAO 2 */}
-                    {visibleSites.site2 && (
-                        <>
-                            <Area yAxisId="left" type="monotone" dataKey="site2DailyEnergy" name="Shundao 2 Công suất" stroke="#0ea5e9" strokeWidth={2} fill="url(#site2PowerGrad)" dot={false} activeDot={{ r: 4 }} connectNulls={true} />
-                            <Area yAxisId="right" type="monotone" dataKey="site2Irradiation" name="Shundao 2 Bức xạ" stroke="#a855f7" strokeWidth={2} fill="url(#site2IrradGrad)" dot={false} activeDot={{ r: 4 }} connectNulls={true} />
-                        </>
-                    )}
+                    <Area
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="site2DailyEnergy"
+                        name="Shundao 2 Công suất"
+                        stroke="#0ea5e9"
+                        strokeWidth={2}
+                        fill="url(#site2PowerGrad)"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls={true}
+                        hide={!visibleSites.site2}
+                        isAnimationActive={false}
+                    />
+                    <Area
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="site2Irradiation"
+                        name="Shundao 2 Bức xạ"
+                        stroke="#a855f7"
+                        strokeWidth={2}
+                        fill="url(#site2IrradGrad)"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls={true}
+                        hide={!visibleSites.site2}
+                        isAnimationActive={false}
+                    />
                 </AreaChart>
             </ResponsiveContainer>
         </div>

@@ -434,7 +434,7 @@ func (f *Fetcher) FetchSmartLoggerDetail(ctx context.Context, deviceDn string) (
 	}
 
 	if !strings.HasPrefix(result, "{") {
-		fmt.Printf("      [DEBUG] Invalid response for %s. Preview: %s\n", deviceDn, result[:min(200, len(result))])
+
 		return nil, fmt.Errorf("invalid response")
 	}
 

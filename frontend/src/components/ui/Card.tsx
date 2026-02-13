@@ -9,7 +9,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Card = ({ children, className, noPadding = false, variant = 'default', ...props }: CardProps) => {
     const variantStyles = {
-        default: "bg-white border border-slate-200/80 shadow-sm",
+        default: "bg-slate-50 border border-slate-200/80 shadow-sm",
         glass: "glass border-white/20 shadow-lg",
         gradient: "bg-gradient-to-br from-white to-slate-50 border border-slate-200/60 shadow-md"
     };

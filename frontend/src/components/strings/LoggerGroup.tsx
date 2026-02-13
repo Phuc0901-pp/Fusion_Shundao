@@ -42,8 +42,8 @@ export const LoggerGroup: React.FC<LoggerGroupProps> = React.memo(({ logger, sel
                 <span className="text-xs text-slate-400">({inverters.length} Biến tần)</span>
             </div>
 
-            {/* Inverters Loop */}
-            <div className="grid grid-cols-2 md:grid-cols-5 xl:grid-cols-10 gap-4">
+            {/* Inverters Loop - Adjusted grid to be less dense on large screens */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-10 gap-1">
                 {inverters.map((inverter) => (
                     <InverterCard key={inverter.id} inverter={inverter} />
                 ))}

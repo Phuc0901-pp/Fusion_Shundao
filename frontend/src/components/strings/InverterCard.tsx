@@ -74,75 +74,104 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
         <>
             <div
                 onClick={() => setShowModal(true)}
-                className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition group relative cursor-pointer"
+                className={`
+                    relative group cursor-pointer overflow-hidden rounded-2xl transition-all duration-300
+                    bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1
+                    ${isConnected ? 'hover:border-green-200' : 'hover:border-red-200'}
+                `}
             >
-                {/* Rename Button - top right */}
-                {inverter.dbId && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setShowRename(true); }}
-                        className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
-                        title="Đổi tên / Cấu hình"
-                    >
-                        <Pencil size={14} />
-                    </button>
-                )}
+                {/* Status Stripe (Left Border) */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
 
-                <div className="flex flex-col items-center justify-center py-2">
-                    {/* Status Indicator */}
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${isConnected ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                        <Zap size={24} className={isConnected ? "animate-pulse" : ""} />
-                    </div>
-
-                    <div className="text-center w-full">
-                        <h5 className={`font-bold text-sm transition-colors ${isConnected ? 'text-slate-700 group-hover:text-green-700' : 'text-red-700'}`}>
-                            {displayName.replace('HF1 ', '').replace('HF5 ', '')}
-                        </h5>
-
-                        {/* String Count Display */}
-                        {setupCount > 0 && (
-                            <div className="flex flex-col items-center mt-1 relative">
-                                <span className="text-[10px] text-gray-500 font-medium">
-                                    Active: <span className={warningCount > 0 ? "text-orange-500 font-bold" : "text-green-600"}>{normalCount}</span>/{setupCount}
+                <div className="p-4 pl-5">
+                    {/* Header: Name and Edit */}
+                    <div className="flex justify-between items-start mb-3">
+                        <div>
+                            <h5 className="font-bold text-slate-700 text-sm truncate pr-2 group-hover:text-blue-600 transition-colors">
+                                {displayName.replace('HF1 ', '').replace('HF5 ', '')}
+                            </h5>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <span className={`flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                                <span className={`text-[10px] font-medium uppercase tracking-wider ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                                    {isConnected ? 'Running' : 'Fault'}
                                 </span>
-                                {warningCount > 0 && (
-                                    <>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowAbnormalDetails(!showAbnormalDetails);
-                                            }}
-                                            className="text-[9px] text-red-500 font-bold animate-pulse hover:scale-105 transition cursor-pointer flex items-center gap-0.5 mt-0.5"
-                                        >
-                                            ⚠️ {warningCount} abnormal {showAbnormalDetails ? '▲' : '▼'}
-                                        </button>
-
-                                        {/* Dropdown for Abnormal Strings */}
-                                        {showAbnormalDetails && (
-                                            <div className="absolute top-full mt-1 z-10 bg-white border border-red-100 shadow-lg rounded-lg p-2 w-max min-w-[100px] animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
-                                                <p className="text-[10px] text-slate-500 font-medium mb-1 border-b border-slate-100 pb-1">Chi tiết sự cố:</p>
-                                                <div className="grid grid-cols-3 gap-1">
-                                                    {abnormalStrings.map(id => (
-                                                        <span key={id} className="text-[9px] font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded text-center block">
-                                                            {id}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
                             </div>
+                        </div>
+
+                        {inverter.dbId && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowRename(true); }}
+                                className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                                <Pencil size={14} />
+                            </button>
                         )}
                     </div>
 
-                    {/* Status Text overlay */}
-                    <span className={`
-                        absolute top-2 left-2 text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-full
-                        ${isConnected ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'}
-                    `}>
-                        {isConnected ? 'Running' : 'Fault'}
-                    </span>
+                    {/* Main Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p className="text-[8px] text-slate-400 font-medium uppercase mb-0.5">Công suất thuần</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className={`text-[12px] font-bold font-mono tracking-tight ${isConnected ? 'text-slate-800' : 'text-slate-400'}`}>
+                                    {inverter.pOutKw?.toFixed(2) || '0.00'}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">kW</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-[8px] text-slate-400 font-medium uppercase mb-0.5">Sản lượng ngày</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-[12px] font-bold font-mono tracking-tight text-slate-600">
+                                    {inverter.eDailyKwh?.toFixed(1) || '0.0'}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">kWh</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer: String Status (Moved up slightly as no border needed now) */}
+                    {setupCount > 0 && (
+                        <div className="mt-3 flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-400 font-medium">Chuỗi PV hoạt động</span>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                    <span className={`text-xs font-bold ${warningCount > 0 ? "text-amber-500" : "text-green-600"}`}>
+                                        {normalCount}
+                                    </span>
+                                    <span className="text-[10px] text-slate-300">/</span>
+                                    <span className="text-xs font-medium text-slate-400">{setupCount}</span>
+                                </div>
+                            </div>
+
+                            {/* Visual String Indicators (Dots) */}
+                            <div className="flex gap-0.5 max-w-[80px] flex-wrap justify-end">
+                                {Array.from({ length: Math.min(setupCount, 10) }).map((_, idx) => {
+                                    const s = getString(idx + 1);
+                                    const isOk = s.current > 0; // Simplified check
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`w-1.5 h-1.5 rounded-full ${isOk ? 'bg-green-400' : 'bg-slate-200'}`}
+                                        />
+                                    );
+                                })}
+                                {setupCount > 10 && <span className="text-[8px] text-slate-300 leading-none self-end">+</span>}
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Warning details overlay (optional, simplified from previous version) */}
+                {warningCount > 0 && (
+                    <div className="absolute top-2 right-8">
+                        <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Inverter Detail Modal */}

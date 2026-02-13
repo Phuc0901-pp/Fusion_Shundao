@@ -21,11 +21,16 @@ var (
 	cacheMutex    sync.RWMutex
 	baseSites     []SiteNode
 	baseSitesLock sync.RWMutex
+
+	// Entity Config Cache
+	entityConfigCache map[string]database.EntityConfig
+	configCacheLock   sync.RWMutex
 )
 
 // StartServer starts the API server
 func StartServer() {
 	// Start background data aggregator
+	initEntityConfigCache()
 	go startBackgroundUpdater()
 
 	http.HandleFunc("/api/dashboard", handleDashboard)
@@ -135,9 +140,38 @@ func handleRename(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 3. Update Cache
+	configCacheLock.Lock()
+	if entityConfigCache == nil {
+		entityConfigCache = make(map[string]database.EntityConfig)
+	}
+	
+	cfg := entityConfigCache[req.ID] // Get existing or empty
+	if req.NewName != "" {
+		cfg.Name = req.NewName
+	}
+	if req.EntityType == "device" && req.StringSet != "" {
+		cfg.StringSet = req.StringSet
+	}
+	entityConfigCache[req.ID] = cfg
+	configCacheLock.Unlock()
+
 	utils.LogInfo("[INFO] Updated %s %s: Name='%s', StringSet='%s'", req.EntityType, req.ID, req.NewName, req.StringSet)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "newName": req.NewName})
+}
+
+func initEntityConfigCache() {
+	configs, err := database.GetAllEntityConfigs()
+	if err != nil {
+		utils.LogError("[ERROR] Failed to initialize entity config cache: %v", err)
+		return
+	}
+	
+	configCacheLock.Lock()
+	entityConfigCache = configs
+	configCacheLock.Unlock()
+	utils.LogInfo("[INFO] Entity config cache initialized with %d entries", len(configs))
 }
 
 func handleInverterDCPower(w http.ResponseWriter, r *http.Request) {

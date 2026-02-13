@@ -84,7 +84,6 @@ function analyzeStrings(strings: StringData[]): StringAnalysis[] {
                 status: {
                     state: 'error' as const,
                     message: 'Inverter có sự cố (mất dòng)',
-                    detail: `${s.current.toFixed(2)}A = 0`,
                 },
             };
         }
@@ -94,7 +93,6 @@ function analyzeStrings(strings: StringData[]): StringAnalysis[] {
                 status: {
                     state: 'error' as const,
                     message: 'Inverter có sự cố (mất điện áp)',
-                    detail: `${s.voltage.toFixed(1)}V = 0`,
                 },
             };
         }
@@ -286,7 +284,7 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = React.mem
                             </div>
                         )}
 
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-2 gap-2 pb-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-2 gap-2 pb-2">
                             {stringAnalysis.map((analysis) => (
                                 <PVString key={analysis.data.id} data={analysis.data} status={analysis.status} />
                             ))}

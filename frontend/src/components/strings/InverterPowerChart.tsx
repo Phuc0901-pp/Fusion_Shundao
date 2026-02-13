@@ -145,7 +145,8 @@ export const InverterPowerChart: React.FC<InverterPowerChartProps> = ({ inverter
         setZoomEnd(data.length);
     };
 
-    // Custom tooltip
+    const safeId = useMemo(() => inverterId.replace(/[^a-zA-Z0-9-_]/g, '_'), [inverterId]);
+
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
@@ -259,11 +260,11 @@ export const InverterPowerChart: React.FC<InverterPowerChartProps> = ({ inverter
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={visibleData} margin={{ top: 5, right: 15, left: 0, bottom: 5 }}>
                             <defs>
-                                <linearGradient id={`dcGrad-${inverterId}`} x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id={`dcGrad-${safeId}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={COLORS.dcPower.stroke} stopOpacity={0.25} />
                                     <stop offset="95%" stopColor={COLORS.dcPower.stroke} stopOpacity={0.02} />
                                 </linearGradient>
-                                <linearGradient id={`acGrad-${inverterId}`} x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id={`acGrad-${safeId}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={COLORS.acPower.stroke} stopOpacity={0.25} />
                                     <stop offset="95%" stopColor={COLORS.acPower.stroke} stopOpacity={0.02} />
                                 </linearGradient>
@@ -292,7 +293,7 @@ export const InverterPowerChart: React.FC<InverterPowerChartProps> = ({ inverter
                                     dataKey="dcPower"
                                     stroke={COLORS.dcPower.stroke}
                                     strokeWidth={2}
-                                    fill={`url(#dcGrad-${inverterId})`}
+                                    fill={`url(#dcGrad-${safeId})`}
                                     dot={false}
                                     activeDot={{ r: 4, fill: COLORS.dcPower.stroke, stroke: '#fff', strokeWidth: 2 }}
                                     connectNulls
@@ -308,7 +309,7 @@ export const InverterPowerChart: React.FC<InverterPowerChartProps> = ({ inverter
                                     dataKey="acPower"
                                     stroke={COLORS.acPower.stroke}
                                     strokeWidth={2}
-                                    fill={`url(#acGrad-${inverterId})`}
+                                    fill={`url(#acGrad-${safeId})`}
                                     dot={false}
                                     activeDot={{ r: 4, fill: COLORS.acPower.stroke, stroke: '#fff', strokeWidth: 2 }}
                                     connectNulls

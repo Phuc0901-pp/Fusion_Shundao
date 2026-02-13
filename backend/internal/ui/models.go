@@ -16,11 +16,11 @@ type DashboardData struct {
 type ProductionDataPoint struct {
 	Date string `json:"date"` // Format: "HH:mm"
 	// SHUNDAO 1
-	Site1Power      *float64 `json:"site1Power"`      // kW
-	Site1Irradiance *float64 `json:"site1Irradiance"` // W/m²
+	Site1Power      *float64 `json:"site1DailyEnergy"` // kW (Frontend expects "site1DailyEnergy")
+	Site1Irradiance *float64 `json:"site1Irradiation"` // W/m² (Frontend expects "site1Irradiation")
 	// SHUNDAO 2
-	Site2Power      *float64 `json:"site2Power"`      // kW
-	Site2Irradiance *float64 `json:"site2Irradiance"` // W/m²
+	Site2Power      *float64 `json:"site2DailyEnergy"` // kW (Frontend expects "site2DailyEnergy")
+	Site2Irradiance *float64 `json:"site2Irradiation"` // W/m² (Frontend expects "site2Irradiation")
 }
 
 // MonthlyDataPoint for monthly production chart (max per day)
@@ -47,11 +47,13 @@ type SiteDataMap struct {
 }
 
 type AlertMessage struct {
-	ID        string `json:"id"`
-	Timestamp int64  `json:"timestamp"`
-	Level     string `json:"level"`
-	Message   string `json:"message"`
-	Source    string `json:"source"`
+	ID         string `json:"id"`
+	Timestamp  int64  `json:"timestamp"`
+	Level      string `json:"level"`
+	Message    string `json:"message"`
+	Source     string `json:"source"`
+	DeviceID   string `json:"deviceId,omitempty"`   // New field for navigation
+	DeviceType string `json:"deviceType,omitempty"` // New field for navigation
 }
 
 type SiteNode struct {

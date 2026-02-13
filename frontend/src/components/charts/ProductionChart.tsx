@@ -47,17 +47,17 @@ const ProductionChartComponent: React.FC<ProductionChartProps> = ({ data, loadin
 
     const currentLoading = viewMode === 'day' ? loading : monthlyLoading;
 
-    // Calculate Totals based on visible sites (using GridFeedIn as Power)
+    // Calculate Totals based on visible sites (using DailyEnergy as Power)
     const validDailyPowerPoints = data.filter(d =>
-        (d.site1GridFeedIn != null && d.site1GridFeedIn > 0) || (d.site2GridFeedIn != null && d.site2GridFeedIn > 0)
+        (d.site1DailyEnergy != null && d.site1DailyEnergy > 0) || (d.site2DailyEnergy != null && d.site2DailyEnergy > 0)
     );
 
     const totalS1MWh = viewMode === 'day'
-        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site1GridFeedIn || 0), 0) * (5 / 60)) / 1000
+        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site1DailyEnergy || 0), 0) * (5 / 60)) / 1000
         : (monthlyData || []).reduce((sum, d) => sum + (d.site1MaxPower || 0), 0) / 1000;
 
     const totalS2MWh = viewMode === 'day'
-        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site2GridFeedIn || 0), 0) * (5 / 60)) / 1000
+        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site2DailyEnergy || 0), 0) * (5 / 60)) / 1000
         : (monthlyData || []).reduce((sum, d) => sum + (d.site2MaxPower || 0), 0) / 1000;
 
     const toggleSite = (site: 'site1' | 'site2') => {

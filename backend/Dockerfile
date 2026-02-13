@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o fusion ./cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o fusion ./cmd/server
 
 # Runtime stage
 FROM alpine:3.19

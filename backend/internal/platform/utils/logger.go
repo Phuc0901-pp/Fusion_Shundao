@@ -34,6 +34,13 @@ func InitLogger() {
 	// Create a new JSON handler
 	handler := slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// Override time with NTP time
+			if a.Key == slog.TimeKey {
+				return slog.Time(slog.TimeKey, GetNow())
+			}
+			return a
+		},
 	})
 
 	Logger = slog.New(handler)

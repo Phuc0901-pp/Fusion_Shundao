@@ -10,15 +10,17 @@ import (
 	"time"
 
 	"fusion/internal/platform/config"
+	"fusion/internal/platform/utils"
 )
 
 // fetchProductionDataFromVM fetches 5-minute interval production data for today (per site)
 func fetchProductionDataFromVM() []ProductionDataPoint {
 	endpoint := config.App.System.VMEndpoint
 	now := time.Now()
-	
-	// Start of TODAY (00:00)
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	loc := time.FixedZone("UTC+7", 7*60*60)
+
+	// Start of TODAY (00:00) in UTC+7
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	end := now
 
 	// 1. Fetch RAW Instantaneous Data (step=5m = 300s)
@@ -30,10 +32,11 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 		Site2Power      float64
 		Site2Irradiance float64
 	}
-	
+
 	rawMap := make(map[string]*RawPoint)
 	getRaw := func(ts time.Time) *RawPoint {
-		key := ts.Format("15:04") // "HH:mm"
+		// Ensure ts is in the correct location before formatting
+		key := ts.In(loc).Format("15:04") // "HH:mm"
 		if _, ok := rawMap[key]; !ok {
 			rawMap[key] = &RawPoint{Date: key}
 		}
@@ -58,19 +61,6 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 		getRaw(ts).Site2Irradiance = val
 	})
 
-	// Process & Create Full 24h Result (5-minute intervals)
-	// 24 hours * 12 points/hour = 288 points
-	totalPoints := 24 * 12
-	result := make([]ProductionDataPoint, totalPoints)
-	
-	// Initialize time slots
-	slotTime := start
-	for i := 0; i < totalPoints; i++ {
-		h := slotTime.Format("15:04")
-		result[i] = ProductionDataPoint{Date: h} 
-		slotTime = slotTime.Add(5 * time.Minute)
-	}
-
 	// Helper to safely get raw values (return nil if missing)
 	getRawVal := func(key string) *RawPoint {
 		if p, ok := rawMap[key]; ok {
@@ -78,37 +68,63 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 		}
 		return nil
 	}
-	
-	// Loop to fill result
-	// We only show data up to current time
-	
-	minutesSinceMidnight := now.Hour()*60 + now.Minute()
-	currentSlotIndex := minutesSinceMidnight / 5
 
-	for i := 0; i < totalPoints; i++ {
-		// If slot is in future (relative to now), skip (leave as nil)
-		if i > currentSlotIndex {
-			continue
-		}
-		
-		key := result[i].Date // "HH:mm"
-		curr := getRawVal(key)
-		
-		// If data exists, assign it. If not, it remains nil (gap in chart, which is correct for missing data)
-		if curr != nil {
-			// Helper to create float pointer
-			toPtr := func(v float64) *float64 { return &v }
-			
-			// For instantaneous values, we just take the value directly.
-			// No delta calculation needed.
-			
-			if curr.Site1Power > 0 { result[i].Site1Power = toPtr(curr.Site1Power) }
-			if curr.Site1Irradiance > 0 { result[i].Site1Irradiance = toPtr(curr.Site1Irradiance) }
-			
-			if curr.Site2Power > 0 { result[i].Site2Power = toPtr(curr.Site2Power) }
-			if curr.Site2Irradiance > 0 { result[i].Site2Irradiance = toPtr(curr.Site2Irradiance) }
-		}
+	// Process & Create Result (5-minute intervals)
+	// Rules:
+	// 1. Start at 06:00
+	// 2. End at MIN(Now, 18:00) => Dynamic effect
+
+	// Create a new start time at 06:00
+	startAt6 := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, loc)
+
+	// Determine end time limit (18:00)
+	endAt18 := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
+
+	// Determine actual limit: Min(Now, 18:00)
+	limitTime := now
+	if limitTime.After(endAt18) {
+		limitTime = endAt18
 	}
+
+	// If now is before 6am, return empty or just one point?
+	// Let's return empty if before 6am to avoid negative slice size
+	if limitTime.Before(startAt6) {
+		return []ProductionDataPoint{}
+	}
+
+	// Calculate number of 5-min slots
+	duration := limitTime.Sub(startAt6)
+	totalSlots := int(duration.Minutes() / 5)
+
+	// Create result slice
+	result := make([]ProductionDataPoint, totalSlots+1)
+
+	slotTime := startAt6
+	for i := 0; i <= totalSlots; i++ {
+		h := slotTime.Format("15:04")
+		result[i] = ProductionDataPoint{Date: h}
+
+		// Fill data if available
+		curr := getRawVal(h)
+		if curr != nil {
+			toPtr := func(v float64) *float64 { return &v }
+			if curr.Site1Power > 0 {
+				result[i].Site1Power = toPtr(curr.Site1Power)
+			}
+			if curr.Site1Irradiance > 0 {
+				result[i].Site1Irradiance = toPtr(curr.Site1Irradiance)
+			}
+			if curr.Site2Power > 0 {
+				result[i].Site2Power = toPtr(curr.Site2Power)
+			}
+			if curr.Site2Irradiance > 0 {
+				result[i].Site2Irradiance = toPtr(curr.Site2Irradiance)
+			}
+		}
+
+		slotTime = slotTime.Add(5 * time.Minute)
+	}
+
 	return result
 }
 
@@ -116,11 +132,11 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 func fetchMonthlyProductionData() []MonthlyDataPoint {
 	endpoint := config.App.System.VMEndpoint
 	now := time.Now()
-	
+
 	// Start from Feb 9, 2026 (or adjust as needed)
 	startDate := time.Date(2026, 2, 9, 0, 0, 0, 0, time.Local)
 	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.Local)
-	
+
 	// Calculate number of days
 	numDays := int(endDate.Sub(startDate).Hours()/24) + 1
 	if numDays < 1 {
@@ -129,9 +145,9 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 	if numDays > 31 {
 		numDays = 31 // Limit to 31 days
 	}
-	
+
 	result := make([]MonthlyDataPoint, numDays)
-	
+
 	// Initialize dates
 	for i := 0; i < numDays; i++ {
 		day := startDate.AddDate(0, 0, i)
@@ -139,10 +155,10 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 			Date: day.Format("02/01"), // DD/MM
 		}
 	}
-	
+
 	// Helper to convert to pointer
 	toPtr := func(v float64) *float64 { return &v }
-	
+
 	// Fetch max power per day for Site 1
 	// Using max_over_time with 1d step
 	fetchMaxPerDay := func(query string, start, end time.Time, setter func(dayIndex int, val float64)) {
@@ -150,15 +166,15 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 		// Step: 86400 (1 day)
 		u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=86400",
 			endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
-		
+
 		resp, err := http.Get(u)
 		if err != nil {
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		body, _ := io.ReadAll(resp.Body)
-		
+
 		var res struct {
 			Data struct {
 				Result []struct {
@@ -166,15 +182,15 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 				} `json:"result"`
 			} `json:"data"`
 		}
-		
+
 		if json.Unmarshal(body, &res) != nil {
 			return
 		}
-		
+
 		if len(res.Data.Result) == 0 {
 			return
 		}
-		
+
 		for _, v := range res.Data.Result[0].Values {
 			if len(v) >= 2 {
 				ts := time.Unix(int64(v[0].(float64)), 0)
@@ -189,35 +205,51 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 			}
 		}
 	}
-	
+
 	// Fetch Site 1 Max Power - use subquery syntax for max of sum
 	fetchMaxPerDay(
 		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})[1d:5m])`,
 		startDate, endDate,
-		func(i int, v float64) { if v > 0 { result[i].Site1MaxPower = toPtr(v) } },
+		func(i int, v float64) {
+			if v > 0 {
+				result[i].Site1MaxPower = toPtr(v)
+			}
+		},
 	)
-	
+
 	// Fetch Site 1 Max Irradiance
 	fetchMaxPerDay(
 		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})[1d:5m])`,
 		startDate, endDate,
-		func(i int, v float64) { if v > 0 { result[i].Site1MaxIrrad = toPtr(v) } },
+		func(i int, v float64) {
+			if v > 0 {
+				result[i].Site1MaxIrrad = toPtr(v)
+			}
+		},
 	)
-	
+
 	// Fetch Site 2 Max Power
 	fetchMaxPerDay(
 		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})[1d:5m])`,
 		startDate, endDate,
-		func(i int, v float64) { if v > 0 { result[i].Site2MaxPower = toPtr(v) } },
+		func(i int, v float64) {
+			if v > 0 {
+				result[i].Site2MaxPower = toPtr(v)
+			}
+		},
 	)
-	
+
 	// Fetch Site 2 Max Irradiance
 	fetchMaxPerDay(
 		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})[1d:5m])`,
 		startDate, endDate,
-		func(i int, v float64) { if v > 0 { result[i].Site2MaxIrrad = toPtr(v) } },
+		func(i int, v float64) {
+			if v > 0 {
+				result[i].Site2MaxIrrad = toPtr(v)
+			}
+		},
 	)
-	
+
 	return result
 }
 
@@ -227,7 +259,7 @@ func fetchKPIFromVM() KPIData {
 	// Metric names match JSON fields: daily_energy, daily_income, etc.
 	// Metric names match JSON fields: daily_energy, daily_income, etc.
 	// Use last_over_time[1h] to handle stale data (up to 1 hour old)
-	return KPIData{
+	kpi := KPIData{
 		DailyEnergy:       querySum(endpoint, `last_over_time(shundao_plant{name="daily_energy"}[1h])`),
 		TotalEnergy:       querySum(endpoint, `last_over_time(shundao_plant{name="cumulative_energy"}[1h])`),
 		DailyIncome:       querySum(endpoint, `last_over_time(shundao_plant{name="daily_income"}[1h])`),
@@ -237,6 +269,7 @@ func fetchKPIFromVM() KPIData {
 		TreesPlanted:      querySum(endpoint, `last_over_time(shundao_plant{name="equivalent_trees"}[1h])`),
 		StandardCoalSaved: querySum(endpoint, `last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`),
 	}
+	return kpi
 }
 
 func fetchChartDataFromVM() []ChartPoint {
@@ -332,15 +365,17 @@ func querySum(endpoint, query string) float64 {
 
 func queryByLabel(endpoint, query string) map[string]float64 {
 	results := make(map[string]float64)
-	url := fmt.Sprintf("%s/api/v1/query?query=%s", endpoint, url.QueryEscape(query))
-	
-	resp, err := http.Get(url)
+	urlQuery := fmt.Sprintf("%s/api/v1/query?query=%s", endpoint, url.QueryEscape(query))
+
+	resp, err := http.Get(urlQuery)
 	if err != nil {
+		utils.LogError("[ERROR] Failed to fetch data for queryByLabel: %v", err)
 		return results
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+
 	var result struct {
 		Data struct {
 			Result []struct {
@@ -351,6 +386,7 @@ func queryByLabel(endpoint, query string) map[string]float64 {
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
+		utils.LogError("[ERROR] Failed to unmarshal queryByLabel response: %v", err)
 		return results
 	}
 
@@ -366,7 +402,7 @@ func queryByLabel(endpoint, query string) map[string]float64 {
 		if id == "" {
 			id = r.Metric["id"]
 		}
-		
+
 		if id != "" && len(r.Value) > 1 {
 			valStr, _ := r.Value[1].(string)
 			var val float64
@@ -382,15 +418,15 @@ func fetchDailyRange(endpoint, query string, start, end time.Time, step int, cal
 	// Step defined by caller (e.g., 3600 for 1h, 86400 for 1d)
 	u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=%d",
 		endpoint, url.QueryEscape(query), start.Unix(), end.Unix(), step)
-	
+
 	resp, err := http.Get(u)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	body, _ := io.ReadAll(resp.Body)
-	
+
 	var result struct {
 		Data struct {
 			Result []struct {
@@ -398,15 +434,15 @@ func fetchDailyRange(endpoint, query string, start, end time.Time, step int, cal
 			} `json:"result"`
 		} `json:"data"`
 	}
-	
+
 	if json.Unmarshal(body, &result) != nil {
 		return
 	}
-	
+
 	if len(result.Data.Result) == 0 {
 		return
 	}
-	
+
 	for _, v := range result.Data.Result[0].Values {
 		if len(v) >= 2 {
 			ts := time.Unix(int64(v[0].(float64)), 0)
@@ -423,10 +459,12 @@ func fetchInverterPowerData(deviceID string) []InverterPowerPoint {
 	endpoint := config.App.System.VMEndpoint
 	now := time.Now()
 	loc := time.FixedZone("UTC+7", 7*60*60)
+	// Force Timezone to UTC+7
+	now = now.In(loc)
 
 	// Start at 06:00, end at 18:00 (solar hours only)
-	start := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, time.Local)
-	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, time.Local)
+	start := time.Date(now.Year(), now.Month(), now.Day(), 6, 0, 0, 0, loc)
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
 	end := now
 	if end.After(endOfDay) {
 		end = endOfDay
