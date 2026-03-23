@@ -159,4 +159,7 @@ const StringDiagramComponent: React.FC<StringDiagramProps> = ({ sites = [], load
     );
 };
 
-export const StringDiagram = React.memo(StringDiagramComponent);
+export const StringDiagram = React.memo(
+    StringDiagramComponent,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);

@@ -10,11 +10,11 @@ interface ProductionSectionProps {
 }
 
 const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sites, isLoading }) => {
-    const getSiteData = (field: keyof KPI) => {
+    const getSiteData = (field: keyof KPI, scale: number) => {
         return sites?.map(s => ({
             id: s.id,
             name: s.name,
-            value: s.kpi ? s.kpi[field] : 0
+            value: s.kpi ? s.kpi[field] * scale : 0
         })) || [];
     };
 
@@ -25,7 +25,8 @@ const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sit
             icon: Zap,
             color: "solar",
             field: "dailyEnergy" as keyof KPI,
-            totalValue: kpi?.dailyEnergy || 0
+            totalValue: kpi?.dailyEnergy ? kpi.dailyEnergy / 1000 : 0,
+            scale: 1 / 1000
         },
         {
             title: "Tổng sản lượng",
@@ -33,7 +34,8 @@ const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sit
             icon: Activity,
             color: "blue",
             field: "totalEnergy" as keyof KPI,
-            totalValue: kpi?.totalEnergy ? kpi.totalEnergy / 1000 : 0
+            totalValue: kpi?.totalEnergy ? kpi.totalEnergy / 1000000 : 0,
+            scale: 1 / 1000000
         },
         {
             title: "Công suất định mức",
@@ -41,7 +43,8 @@ const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sit
             icon: Zap,
             color: "slate",
             field: "ratedPower" as keyof KPI,
-            totalValue: kpi?.ratedPower || 0
+            totalValue: kpi?.ratedPower ? kpi.ratedPower / 1000 : 0,
+            scale: 1 / 1000
         }
     ];
 
@@ -55,7 +58,7 @@ const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sit
                     icon={metric.icon}
                     color={metric.color}
                     totalValue={metric.totalValue}
-                    sites={getSiteData(metric.field)}
+                    sites={getSiteData(metric.field, metric.scale)}
                     loading={isLoading}
                     delay={index}
                 />
@@ -64,4 +67,7 @@ const ProductionSectionComponent: React.FC<ProductionSectionProps> = ({ kpi, sit
     );
 };
 
-export const ProductionSection = React.memo(ProductionSectionComponent);
+export const ProductionSection = React.memo(
+    ProductionSectionComponent,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);

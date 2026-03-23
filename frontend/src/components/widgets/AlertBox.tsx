@@ -82,7 +82,7 @@ const findInverterById = (sites: Site[], deviceId: string): Inverter | null => {
 
 // Audio is now handled by useSmartAlerts hook
 
-export const AlertBox: React.FC<AlertBoxProps> = memo(({ alerts, sites = [], loading = false }) => {
+const AlertBoxComponent: React.FC<AlertBoxProps> = ({ alerts, sites = [], loading = false }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [filter, setFilter] = useState<FilterLevel>('all');
     const [showFilter, setShowFilter] = useState(false);
@@ -213,6 +213,11 @@ export const AlertBox: React.FC<AlertBoxProps> = memo(({ alerts, sites = [], loa
             )}
         </>
     );
-});
+};
+
+export const AlertBox = memo(
+    AlertBoxComponent,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);
 
 AlertBox.displayName = 'AlertBox';

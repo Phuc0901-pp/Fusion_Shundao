@@ -1,102 +1,70 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import React, { useMemo } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { ProductionDataPoint } from '../../types';
-import { CHART_MIN_VISIBLE_POINTS, CHART_X_AXIS_TICK_COUNT } from '../../config/constants';
+import { CHART_X_AXIS_TICK_COUNT } from '../../config/constants';
+import { useChartZoom } from '../../hooks/useChartZoom';
+import { useYAxisTicks } from '../../hooks/useYAxisTicks';
 
 interface DailyLineChartProps {
     data: ProductionDataPoint[];
     visibleSites: { site1: boolean; site2: boolean };
 }
 
-// Helper to get nice round ticks for the left axis
-const getNiceTicks = (dataMax: number, tickCount: number = 6) => {
-    if (dataMax === 0) return [0, 2000, 4000, 6000, 8000, 10000];
-    const step = Math.ceil(dataMax / (tickCount - 1) / 100) * 100; // Round step to nearest 100
-    const ticks = [];
-    for (let i = 0; i < tickCount; i++) {
-        ticks.push(i * step);
-    }
-    return ticks;
-};
+// Static ticks for the irradiance (right) axis – never changes
+const RIGHT_TICKS = [0, 300, 600, 900, 1200, 1500];
 
-export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSites }) => {
-    const [zoomStart, setZoomStart] = useState(0);
-    const [zoomEnd, setZoomEnd] = useState(data.length);
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-
-    // Initial sync
-    useEffect(() => {
-        if (data.length > 0) {
-            setZoomStart(0);
-            setZoomEnd(data.length);
+// DailyLineChart is memoized to avoid costly re-renders when parent state
+// updates (e.g. hover, sidebar toggle) don't affect chart data.
+const DailyLineChartInner: React.FC<DailyLineChartProps> = ({ data, visibleSites }) => {
+    // ── Custom Hooks ──────────────────────────────────────────────────────────
+    // Trim trailing incomplete data points to prevent the chart from dropping to 0
+    // or showing '--' in tooltips during the ~30s it takes the crawler to fetch all devices.
+    const sanitizedData = useMemo(() => {
+        let validEnd = data.length;
+        for (let i = data.length - 1; i >= 0; i--) {
+            const d = data[i];
+            // Check if this point has all required metrics for the currently visible sites
+            const s1Ok = !visibleSites.site1 || (d.site1DailyEnergy != null && d.site1Irradiation != null);
+            const s2Ok = !visibleSites.site2 || (d.site2DailyEnergy != null && d.site2Irradiation != null);
+            
+            if (s1Ok && s2Ok) {
+                validEnd = i + 1;
+                break;
+            }
         }
-    }, [data.length]);
+        // If everything was incomplete, just return original to avoid blank chart
+        if (validEnd === 0) return data;
+        return data.slice(0, validEnd);
+    }, [data, visibleSites]);
 
-    // Handle Ctrl + Scroll zoom
-    const handleWheel = useCallback((e: WheelEvent) => {
-        if (!e.ctrlKey || data.length === 0) return;
-        e.preventDefault();
-        e.stopPropagation();
+    // All zoom logic lives in useChartZoom
+    const { containerRef, visibleRange } = useChartZoom({ dataLength: sanitizedData.length });
 
-        const container = chartContainerRef.current;
-        if (!container) return;
+    // Slice data to what's visible in the current zoom window
+    const visibleData = useMemo(
+        () => sanitizedData.slice(visibleRange.start, visibleRange.end),
+        [sanitizedData, visibleRange],
+    );
 
-        const rect = container.getBoundingClientRect();
-        const chartLeft = 45; // Approx Y-Axis width
-        const chartRight = 15; // Approx Right padding
-        const chartWidth = rect.width - chartLeft - chartRight;
-        const mouseX = e.clientX - rect.left - chartLeft;
-        const ratio = Math.max(0, Math.min(1, mouseX / chartWidth));
-
-        const currentRange = zoomEnd - zoomStart;
-        const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
-        let newRange = Math.round(currentRange * zoomFactor);
-
-        newRange = Math.max(CHART_MIN_VISIBLE_POINTS, Math.min(data.length, newRange));
-
-        const centerIndex = zoomStart + ratio * currentRange;
-        let newStart = Math.round(centerIndex - ratio * newRange);
-        let newEnd = newStart + newRange;
-
-        if (newStart < 0) { newStart = 0; newEnd = newRange; }
-        if (newEnd > data.length) { newEnd = data.length; newStart = Math.max(0, newEnd - newRange); }
-
-        setZoomStart(newStart);
-        setZoomEnd(newEnd);
-    }, [data.length, zoomStart, zoomEnd]);
-
-    useEffect(() => {
-        const container = chartContainerRef.current;
-        if (!container) return;
-        container.addEventListener('wheel', handleWheel, { passive: false });
-        return () => container.removeEventListener('wheel', handleWheel);
-    }, [handleWheel]);
-
-    const visibleData = useMemo(() => {
-        if (data.length === 0) return [];
-        return data.slice(zoomStart, zoomEnd);
-    }, [data, zoomStart, zoomEnd]);
-
-    // Calculate max power based on VISIBLE sites only
+    // Find max power across visible data for the left Y-axis
     const maxPower = useMemo(() => {
-        let max = 100; // default minimum
-        visibleData.forEach(d => {
+        let max = 100;
+        visibleData.forEach((d) => {
             if (visibleSites.site1) max = Math.max(max, d.site1DailyEnergy || 0);
             if (visibleSites.site2) max = Math.max(max, d.site2DailyEnergy || 0);
         });
         return max;
     }, [visibleData, visibleSites]);
 
-    // Generate exactly 6 ticks for left axis
-    const leftTicks = getNiceTicks(maxPower, 6);
-    const rightTicks = [0, 300, 600, 900, 1200, 1500];
+    // Nice ticks from hook
+    const leftTicks = useYAxisTicks(maxPower, 6);
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <div ref={chartContainerRef} className="w-full h-full">
+        <div ref={containerRef} className="w-full h-full">
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={visibleData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                     <defs>
-                        {/* Shundao 1 Gradients */}
                         <linearGradient id="site1PowerGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
                             <stop offset="95%" stopColor="#22c55e" stopOpacity={0.02} />
@@ -105,7 +73,6 @@ export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSit
                             <stop offset="5%" stopColor="#fb923c" stopOpacity={0.25} />
                             <stop offset="95%" stopColor="#fb923c" stopOpacity={0.02} />
                         </linearGradient>
-                        {/* Shundao 2 Gradients */}
                         <linearGradient id="site2PowerGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.25} />
                             <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.02} />
@@ -143,7 +110,7 @@ export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSit
                         axisLine={false}
                         width={45}
                         domain={[0, 1500]}
-                        ticks={rightTicks}
+                        ticks={RIGHT_TICKS}
                         label={{ value: 'W/m²', angle: 90, position: 'insideRight', offset: 0, style: { fontSize: 10, fill: '#f97316' } }}
                     />
                     <Tooltip
@@ -187,67 +154,33 @@ export const DailyLineChart: React.FC<DailyLineChartProps> = ({ data, visibleSit
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '5px' }} />
 
-                    {/* SHUNDAO 1 - Used HIDE prop to avoid unmount jitter */}
-                    <Area
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="site1DailyEnergy"
-                        name="Shundao 1 Công suất "
-                        stroke="#22c55e"
-                        strokeWidth={2}
-                        fill="url(#site1PowerGrad)"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={true}
-                        hide={!visibleSites.site1} // Changed from conditional render
-                        isAnimationActive={false} // Disable animation for smoother toggle
-                    />
-                    <Area
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="site1Irradiation"
-                        name="Shundao 1 Bức xạ "
-                        stroke="#fb923c"
-                        strokeWidth={2}
-                        fill="url(#site1IrradGrad)"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={true}
-                        hide={!visibleSites.site1}
-                        isAnimationActive={false}
-                    />
+                    {/* SHUNDAO 1 */}
+                    <Area yAxisId="left" type="monotone" dataKey="site1DailyEnergy"
+                        name="Shundao 1 Công suất " stroke="#22c55e" strokeWidth={2}
+                        fill="url(#site1PowerGrad)" dot={false} activeDot={{ r: 4 }}
+                        connectNulls hide={!visibleSites.site1} isAnimationActive={false} />
+                    <Area yAxisId="right" type="monotone" dataKey="site1Irradiation"
+                        name="Shundao 1 Bức xạ " stroke="#fb923c" strokeWidth={2}
+                        fill="url(#site1IrradGrad)" dot={false} activeDot={{ r: 4 }}
+                        connectNulls hide={!visibleSites.site1} isAnimationActive={false} />
 
                     {/* SHUNDAO 2 */}
-                    <Area
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="site2DailyEnergy"
-                        name="Shundao 2 Công suất"
-                        stroke="#0ea5e9"
-                        strokeWidth={2}
-                        fill="url(#site2PowerGrad)"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={true}
-                        hide={!visibleSites.site2}
-                        isAnimationActive={false}
-                    />
-                    <Area
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="site2Irradiation"
-                        name="Shundao 2 Bức xạ"
-                        stroke="#a855f7"
-                        strokeWidth={2}
-                        fill="url(#site2IrradGrad)"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={true}
-                        hide={!visibleSites.site2}
-                        isAnimationActive={false}
-                    />
+                    <Area yAxisId="left" type="monotone" dataKey="site2DailyEnergy"
+                        name="Shundao 2 Công suất" stroke="#0ea5e9" strokeWidth={2}
+                        fill="url(#site2PowerGrad)" dot={false} activeDot={{ r: 4 }}
+                        connectNulls hide={!visibleSites.site2} isAnimationActive={false} />
+                    <Area yAxisId="right" type="monotone" dataKey="site2Irradiation"
+                        name="Shundao 2 Bức xạ" stroke="#a855f7" strokeWidth={2}
+                        fill="url(#site2IrradGrad)" dot={false} activeDot={{ r: 4 }}
+                        connectNulls hide={!visibleSites.site2} isAnimationActive={false} />
                 </AreaChart>
             </ResponsiveContainer>
         </div>
     );
 };
+
+// Only re-render when data values or site visibility changes
+export const DailyLineChart = React.memo(
+    DailyLineChartInner,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);

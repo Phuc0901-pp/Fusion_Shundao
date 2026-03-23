@@ -10,9 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"fusion/internal/database"
 	"fusion/internal/platform/utils"
+	"fusion/internal/victoriametrics"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // Cache Mechanism
@@ -27,6 +29,41 @@ var (
 	configCacheLock   sync.RWMutex
 )
 
+// === SSE Hub ===
+// Keeps track of all active SSE clients and broadcasts updates.
+type sseHub struct {
+	mu      sync.RWMutex
+	clients map[chan []byte]struct{}
+}
+
+var hub = &sseHub{clients: make(map[chan []byte]struct{})}
+
+func (h *sseHub) subscribe() chan []byte {
+	ch := make(chan []byte, 4)
+	h.mu.Lock()
+	h.clients[ch] = struct{}{}
+	h.mu.Unlock()
+	return ch
+}
+
+func (h *sseHub) unsubscribe(ch chan []byte) {
+	h.mu.Lock()
+	delete(h.clients, ch)
+	h.mu.Unlock()
+	close(ch)
+}
+
+func (h *sseHub) broadcast(data []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for ch := range h.clients {
+		select {
+		case ch <- data:
+		default: // slow client – skip, don't block broadcaster
+		}
+	}
+}
+
 // StartServer starts the API server
 func StartServer() {
 	// Start background data aggregator
@@ -34,10 +71,12 @@ func StartServer() {
 	go startBackgroundUpdater()
 
 	http.HandleFunc("/api/dashboard", handleDashboard)
+	http.HandleFunc("/api/static", handleStaticData)
+	http.HandleFunc("/api/stream/dashboard", handleSSEDashboard)
 	http.HandleFunc("/api/production-monthly", handleMonthlyProduction)
 	http.HandleFunc("/api/rename", handleRename)
 	http.HandleFunc("/api/inverter/dc-power", handleInverterDCPower)
-	http.HandleFunc("/healthz", handleHealthz) // Logic from low priority tasks
+	http.HandleFunc("/healthz", handleHealthz)
 
 	port := ":5039"
 	fmt.Printf("[READY] Starting UI Backend Server on %s...\n", port)
@@ -78,7 +117,16 @@ func handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMonthlyProduction(w http.ResponseWriter, r *http.Request) {
-	data := fetchMonthlyProductionData()
+	// Parse optional ?month=YYYY-MM query param
+	var selectedMonth time.Time
+	if m := r.URL.Query().Get("month"); m != "" {
+		// Expected format: "2026-02"
+		if t, err := time.Parse("2006-01", m); err == nil {
+			selectedMonth = t
+		}
+	}
+
+	data := fetchMonthlyProductionData(selectedMonth)
 
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
@@ -94,6 +142,66 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+// handleSSEDashboard – long-lived SSE connection.
+// Browser connects once; server pushes fresh DashboardData whenever updateMetrics runs.
+func handleSSEDashboard(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "SSE not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+
+	// Send current snapshot immediately so the UI renders without waiting
+	cacheMutex.RLock()
+	snapshot, _ := json.Marshal(apiCache)
+	cacheMutex.RUnlock()
+	fmt.Fprintf(w, "data: %s\n\n", snapshot)
+	flusher.Flush()
+
+	// Subscribe to future updates
+	ch := hub.subscribe()
+	defer hub.unsubscribe(ch)
+
+	ticker := time.NewTicker(30 * time.Second) // heartbeat to keep connection alive
+	defer ticker.Stop()
+
+	for {
+		select {
+		case data, ok := <-ch:
+			if !ok {
+				return
+			}
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		case <-ticker.C:
+			// Heartbeat comment – keeps proxy connections alive
+			fmt.Fprintf(w, ": heartbeat\n\n")
+			flusher.Flush()
+		case <-r.Context().Done():
+			return
+		}
+	}
+}
+
+// handleStaticData returns site/logger structure only (infrequently changes).
+// Frontend fetches this once on load, not on every poll cycle.
+func handleStaticData(w http.ResponseWriter, r *http.Request) {
+	baseSitesLock.RLock()
+	sites := baseSites
+	baseSitesLock.RUnlock()
+
+	w.Header().Set("Cache-Control", "max-age=300") // Cache-able for 5 minutes
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sites)
+}
+
+
+
 func handleRename(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" && r.Method != "PUT" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -101,10 +209,11 @@ func handleRename(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		EntityType string `json:"entityType"` // "site", "logger", "device"
-		ID         string `json:"id"`         // DB ID
-		NewName    string `json:"newName"`
-		StringSet  string `json:"stringSet"`  // Option 2
+		EntityType      string `json:"entityType"`      // "site", "logger", "device"
+		ID              string `json:"id"`              // DB ID
+		NewName         string `json:"newName"`
+		StringSet       string `json:"stringSet"`       // Total string count
+		ExcludedStrings string `json:"excludedStrings"` // Comma-separated excluded indices
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -118,8 +227,8 @@ func handleRename(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Update Name (if provided or empty string means reset)
-	// For Option 2: rename might not be the only action. 
-	// But current UI sends newName. If we want to update ONLY stringSet, frontend should send current name? 
+	// For Option 2: rename might not be the only action.
+	// But current UI sends newName. If we want to update ONLY stringSet, frontend should send current name?
 	// Or we make UpdateNameChange optional?
 	// Let's assume frontend sends everything.
 	if err := database.UpdateNameChange(req.EntityType, req.ID, req.NewName); err != nil {
@@ -130,13 +239,11 @@ func handleRename(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Update StringSet (only for device)
 	if req.EntityType == "device" {
-		// Even if empty, we update it (to allow clearing)
-		// But if the field is missing in JSON (nil), we wouldn't know. 
-		// Since we use struct, zero value is "". 
-		// Frontend should send valid stringSet or "" to clear.
 		if err := database.UpdateDeviceStringSet(req.ID, req.StringSet); err != nil {
 			utils.LogError("[ERROR] Failed to update string set: %v", err)
-			// Don't fail the whole request, but log it.
+		}
+		if err := database.UpdateDeviceExcludedStrings(req.ID, req.ExcludedStrings); err != nil {
+			utils.LogError("[ERROR] Failed to update excluded strings: %v", err)
 		}
 	}
 
@@ -145,18 +252,19 @@ func handleRename(w http.ResponseWriter, r *http.Request) {
 	if entityConfigCache == nil {
 		entityConfigCache = make(map[string]database.EntityConfig)
 	}
-	
-	cfg := entityConfigCache[req.ID] // Get existing or empty
-	if req.NewName != "" {
-		cfg.Name = req.NewName
-	}
-	if req.EntityType == "device" && req.StringSet != "" {
-		cfg.StringSet = req.StringSet
+
+	cfg := entityConfigCache[req.ID]
+	cfg.Name = req.NewName
+	if req.EntityType == "device" {
+		if req.StringSet != "" {
+			cfg.StringSet = req.StringSet
+		}
+		cfg.ExcludedStrings = req.ExcludedStrings
 	}
 	entityConfigCache[req.ID] = cfg
 	configCacheLock.Unlock()
 
-	utils.LogInfo("[INFO] Updated %s %s: Name='%s', StringSet='%s'", req.EntityType, req.ID, req.NewName, req.StringSet)
+	utils.LogInfo("[INFO] Updated %s %s: Name='%s', StringSet='%s', ExcludedStrings='%s'", req.EntityType, req.ID, req.NewName, req.StringSet, req.ExcludedStrings)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "newName": req.NewName})
 }
@@ -167,7 +275,7 @@ func initEntityConfigCache() {
 		utils.LogError("[ERROR] Failed to initialize entity config cache: %v", err)
 		return
 	}
-	
+
 	configCacheLock.Lock()
 	entityConfigCache = configs
 	configCacheLock.Unlock()
@@ -213,6 +321,18 @@ func startBackgroundUpdater() {
 		ticker := time.NewTicker(5 * time.Second)
 		for range ticker.C {
 			updateMetrics()
+		}
+	}()
+
+	// VM Push Loop (5 minutes)
+	// Đẩy lại toàn bộ data hiện tại lên VictoriaMetrics với timestamp mới
+	// để tạo continuous time-series cho biểu đồ tổng hợp.
+	go func() {
+		// Push ngay lần đầu
+		victoriametrics.PushToVictoriaMetrics()
+		ticker := time.NewTicker(5 * time.Minute)
+		for range ticker.C {
+			victoriametrics.PushToVictoriaMetrics()
 		}
 	}()
 
@@ -370,4 +490,9 @@ func updateMetrics() {
 	cacheMutex.Lock()
 	apiCache = newData
 	cacheMutex.Unlock()
+
+	// Push fresh data to all SSE subscribers immediately
+	if payload, err := json.Marshal(newData); err == nil {
+		go hub.broadcast(payload)
+	}
 }

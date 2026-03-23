@@ -75,13 +75,14 @@ type LoggerNode struct {
 }
 
 type InverterNode struct {
-	ID           string       `json:"id"`
-	DbID         string       `json:"dbId"` // Match DB UUID
-	Name         string       `json:"name"`
-	DefaultName  string       `json:"defaultName"`
-	NumberStringSet string    `json:"numberStringSet,omitempty"` // Option 2: Setup
-	DeviceStatus string       `json:"deviceStatus"`
-	Strings      []StringData `json:"strings"`
+	ID              string       `json:"id"`
+	DbID            string       `json:"dbId"`             // Match DB UUID
+	Name            string       `json:"name"`
+	DefaultName     string       `json:"defaultName"`
+	NumberStringSet string       `json:"numberStringSet,omitempty"` // Total string count configured
+	ExcludedStrings string       `json:"excludedStrings,omitempty"` // Comma-separated excluded indices e.g. "4,8"
+	DeviceStatus    string       `json:"deviceStatus"`
+	Strings         []StringData `json:"strings"`
 	// Power metrics
 	DcPowerKw      float64 `json:"dcPowerKw,omitempty"`
 	POutKw         float64 `json:"pOutKw,omitempty"`

@@ -1,4 +1,9 @@
-
+# ═════════════════════════════════════════════════════════════════════════════
+# Shundao Solar – Production Docker Compose
+# Chỉ chứa 2 containers: Backend (Go) + Frontend (NGINX).
+# PostgreSQL và VictoriaMetrics chạy NATIVE trên Server Host → kết nối qua
+# "extra_hosts: host-gateway" hoặc IP tĩnh được truyền qua biến môi trường.
+# ═════════════════════════════════════════════════════════════════════════════
 
 services:
   backend:
@@ -7,18 +12,42 @@ services:
     restart: unless-stopped
     ports:
       - "5039:5039"
+      - "5040:5040"
     volumes:
+      # Thư mục configs (app.json, sites,...) mount từ máy chủ
       - ./configs:/app/configs:ro
+      # Output data lưu ra thư mục host
       - ./output:/app/output
+      # Logs
       - ./logs:/app/logs
     environment:
       - TZ=Asia/Ho_Chi_Minh
+      # ── PostgreSQL ────────────────────────────────────────────────────────
+      # Sửa thành DSN kết nối với Postgres đang chạy native trên Server.
+      # Dạng: host=<IP_SERVER> user=<USER> password=<PASS> dbname=<DB> port=5432 sslmode=disable
+      - DB_DSN=${DB_DSN}
+      # ── JWT ───────────────────────────────────────────────────────────────
+      - JWT_SECRET=${JWT_SECRET}
+      # ── VictoriaMetrics (native trên host) ───────────────────────────────
+      # Sửa thành http://<IP_SERVER>:8428
+      - VICTORIA_URL=${VICTORIA_URL}
+      # ── Gemini Flash API ──────────────────────────────────────────────────
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    # Cho phép container truy cập vào các dịch vụ native trên Server Host
+    extra_hosts:
+      - "host-gateway:host-gateway"
+      - "vpn377464140.softether.net:14.186.14.91"
+      # PostgreSQL native host
+      - "pg-server:192.168.31.254"
+      # VictoriaMetrics native host (VPN IP)
+      - "vm-server:100.81.226.125"
     networks:
-      - shundao-network
+      - shundao-net
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5039/api/dashboard"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5040/healthz"]
       interval: 30s
       timeout: 10s
+      start_period: 15s
       retries: 3
 
   frontend:
@@ -26,31 +55,18 @@ services:
     container_name: shundao-frontend
     restart: unless-stopped
     ports:
-      - "9005:80"
+      - "2608:2608"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
-      - shundao-network
+      - shundao-net
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2608"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: shundao-ngrok
-    restart: unless-stopped
-    command: http frontend:80
-    environment:
-      - NGROK_AUTHTOKEN=39Tug0aqKauZ23q54ItVyHAUrtF_9gXjBuku9sapvfsVe7NM
-    ports:
-      - 4040:4040
-    depends_on:
-      - backend
-    networks:
-      - shundao-network
-
 networks:
-  shundao-network:
+  shundao-net:
     driver: bridge

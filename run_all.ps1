@@ -5,7 +5,6 @@ Write-Host "[READY] Starting Fusion-Shundao System..." -ForegroundColor Green
 
 # 0. Kill existing processes to avoid conflicts (Force Kill)
 Write-Host "[CLEANUP] Stopping old processes..." -ForegroundColor Yellow
-Stop-Process -Name "ngrok" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "server" -Force -ErrorAction SilentlyContinue
 
 # 1. Start Backend (Go)
@@ -25,17 +24,7 @@ Start-Sleep -Seconds 2
 Write-Host "[PROCESS] Launching Frontend (React)..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {Write-Host '=== FRONTEND (REACT) ===' -ForegroundColor Cyan; cd frontend; npm run dev}"
 
-Write-Host "[PROCESS] Launching Ngrok Tunnel (Frontend)..." -ForegroundColor Cyan
-if (Test-Path ".\ngrok.exe") {
-    .\ngrok.exe config add-authtoken 39Tug0aqKauZ23q54ItVyHAUrtF_9gXjBuku9sapvfsVe7NM
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "& {.\ngrok.exe http --domain=prescholastic-hurtlingly-latia.ngrok-free.dev 9000}"
-} else {
-    Write-Host "[WARNING] 'ngrok.exe' not found in current directory. Skipping Ngrok." -ForegroundColor Yellow
-    Write-Host "Please download ngrok.exe and place it in this folder to enable public access." -ForegroundColor Yellow
-}
-
-Write-Host "[SUCCESS] System started! Check the THREE new PowerShell windows." -ForegroundColor Green
+Write-Host "[SUCCESS] System started! Check the TWO new PowerShell windows." -ForegroundColor Green
 Write-Host "[HOST]   - Backend: http://localhost:5039" 
 Write-Host "[HOST]   - Frontend: http://localhost:9000"
-Write-Host "[PUBLIC] - Ngrok: https://prescholastic-hurtlingly-latia.ngrok-free.dev"
 Write-Host "===================================[FINISHED]==================================="

@@ -2,8 +2,11 @@ package browser
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
+	"fusion/internal/platform/utils"
 	"github.com/chromedp/chromedp"
 )
 
@@ -42,7 +45,16 @@ func NewHeadless(timeout time.Duration) (context.Context, context.CancelFunc) {
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 
-	ctx, ctxCancel := chromedp.NewContext(allocCtx)
+	ctx, ctxCancel := chromedp.NewContext(
+		allocCtx,
+		chromedp.WithErrorf(func(format string, args ...interface{}) {
+			msg := fmt.Sprintf(format, args...)
+			if strings.Contains(msg, "CookiePartitionKey") {
+				return
+			}
+			utils.LogError("[CHROMEDP_RUNTIME] %s", msg)
+		}),
+	)
 
 	ctx, timeoutCancel := context.WithTimeout(ctx, timeout)
 

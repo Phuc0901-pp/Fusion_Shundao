@@ -329,8 +329,8 @@ func splitName(s string) []string {
 func enrichSitesWithVMData(sites *[]SiteNode) {
 	endpoint := config.App.System.VMEndpoint
 	// Query ALL inverter data: shundao_inverter (without name filter to get all fields)
-	// Use last_over_time[1h] to get latest value
-	query := `last_over_time(shundao_inverter[1h])`
+	// Use last_over_time[24h] to get latest value securely even if data is delayed
+	query := `last_over_time(shundao_inverter[24h])`
 	url := fmt.Sprintf("%s/api/v1/query?query=%s", endpoint, url.QueryEscape(query))
 
 	resp, err := http.Get(url)
@@ -446,14 +446,14 @@ func enrichSitesWithKPI(sites *[]SiteNode) {
 	
 	// Fetch all data points for relevant metrics, grouped by 'device' (SmartLogger name)
 	metrics := map[string]string{
-		"dailyEnergy":       `last_over_time(shundao_plant{name="daily_energy"}[1h])`,
-		"totalEnergy":       `last_over_time(shundao_plant{name="cumulative_energy"}[1h])`,
-		"dailyIncome":       `last_over_time(shundao_plant{name="daily_income"}[1h])`,
-		"co2Reduction":      `last_over_time(shundao_plant{name="co2_reduction"}[1h])`,
-		"treesPlanted":      `last_over_time(shundao_plant{name="equivalent_trees"}[1h])`,
-		"standardCoalSaved": `last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`,
-		"gridSupplyToday":   `last_over_time(shundao_plant{name="daily_ongrid_energy"}[1h])`,
-		"ratedPower":        `last_over_time(shundao_inverter{name="rated_power_kw"}[1h])`,
+		"dailyEnergy":       `last_over_time(shundao_plant{name="daily_energy"}[24h])`,
+		"totalEnergy":       `last_over_time(shundao_plant{name="cumulative_energy"}[24h])`,
+		"dailyIncome":       `last_over_time(shundao_plant{name="daily_income"}[24h])`,
+		"co2Reduction":      `last_over_time(shundao_plant{name="co2_reduction"}[24h])`,
+		"treesPlanted":      `last_over_time(shundao_plant{name="equivalent_trees"}[24h])`,
+		"standardCoalSaved": `last_over_time(shundao_plant{name="standard_coal_savings"}[24h])`,
+		"gridSupplyToday":   `last_over_time(shundao_plant{name="daily_ongrid_energy"}[24h])`,
+		"ratedPower":        `last_over_time(shundao_inverter{name="rated_power_kw"}[24h])`,
 	}
 
 	// Store results: DeviceID -> Metric -> Value
@@ -559,7 +559,7 @@ func enrichSitesWithCustomNames(sites *[]SiteNode) {
 
 			for k := range logger.Inverters {
 				inv := &logger.Inverters[k]
-				// Update Inverter Name & StringSet
+				// Update Inverter Name, StringSet & ExcludedStrings
 				if cfg, ok := entityConfigCache[inv.DbID]; ok {
 					if cfg.Name != "" {
 						inv.Name = cfg.Name
@@ -567,6 +567,7 @@ func enrichSitesWithCustomNames(sites *[]SiteNode) {
 					if cfg.StringSet != "" {
 						inv.NumberStringSet = cfg.StringSet
 					}
+					inv.ExcludedStrings = cfg.ExcludedStrings
 				}
 			}
 		}

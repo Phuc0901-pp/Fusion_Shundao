@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { QUERY_CONFIG } from '../config/constants';
 
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 1000 * 60 * 5, // 5 minutes
+            staleTime: QUERY_CONFIG.staleTime,
             refetchOnWindowFocus: false,
-            retry: 1,
+            retry: QUERY_CONFIG.retryCount,
         },
     },
 });

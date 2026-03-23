@@ -12,7 +12,7 @@ interface DeviceSectionProps {
     loading?: boolean;
 }
 
-export const DeviceSection: React.FC<DeviceSectionProps> = ({ sensors = [], meters = [], loading = false }) => {
+const DeviceSectionInner: React.FC<DeviceSectionProps> = ({ sensors = [], meters = [], loading = false }) => {
     if (loading) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
@@ -160,3 +160,8 @@ export const DeviceSection: React.FC<DeviceSectionProps> = ({ sensors = [], mete
         </div>
     );
 };
+
+export const DeviceSection = React.memo(
+    DeviceSectionInner,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);

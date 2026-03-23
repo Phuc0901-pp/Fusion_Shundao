@@ -8,12 +8,12 @@ import (
 func TestGenerateDeviceAlerts(t *testing.T) {
 	// Fixed time: 12:00 PM (Daytime)
 	fixedTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
-		name     string
-		inverter InverterNode
+		name      string
+		inverter  InverterNode
 		wantAlert bool
-		wantMsg  string
+		wantMsg   string
 	}{
 		{
 			name: "Normal Operation",

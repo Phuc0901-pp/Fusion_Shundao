@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"fusion/internal/platform/config"
 	"fusion/internal/platform/utils"
 )
 
@@ -185,15 +186,16 @@ func convertDeviceMetrics(prefix string, data GenericData, station string) []str
 	device := sanitizeLabel(data.Name)
 	model := sanitizeLabel(data.Model)
 	sn := data.SN
+	deviceID := data.ID // UUID
 
 	for fieldName, fieldValue := range data.Fields {
 		val, ok := toFloat64(fieldValue)
 		if !ok {
 			continue
 		}
-		// Label order: site_name, site_id, station, device, model, sn, name
-		metric := fmt.Sprintf("%s{site_name=\"%s\",site_id=\"%s\",station=\"%s\",device=\"%s\",model=\"%s\",sn=\"%s\",name=\"%s\"} %v %d",
-			prefix, siteName, siteID, station, device, model, sn, sanitizeMetricName(fieldName), val, data.Timestamp)
+		// Label order: site_name, site_id, station, device, model, sn, id, name
+		metric := fmt.Sprintf("%s{site_name=\"%s\",site_id=\"%s\",station=\"%s\",device=\"%s\",model=\"%s\",sn=\"%s\",id=\"%s\",name=\"%s\"} %v %d",
+			prefix, siteName, siteID, station, device, model, sn, deviceID, sanitizeMetricName(fieldName), val, data.Timestamp)
 		lines = append(lines, metric)
 	}
 	return lines
@@ -301,10 +303,22 @@ func toFloat64(v interface{}) (float64, bool) {
 	}
 }
 
+// PushMetricsDirect pushes a pre-formatted batch of Prometheus metric lines directly
+// to VictoriaMetrics without writing to disk first (zero Disk I/O path).
+// lines should be a slice of "metric{labels} value timestamp" strings.
+func (c *Client) PushMetricsDirect(lines []string) error {
+	if len(lines) == 0 {
+		return nil
+	}
+	payload := strings.Join(lines, "\n")
+	return c.PushMetrics(payload)
+}
+
 // PushToVictoriaMetrics is a convenience function to push all data from output directory
-// to VictoriaMetrics. Uses default endpoint and output directory.
+// to VictoriaMetrics. Uses config endpoint and output directory.
+// This serves as a fallback / recovery mechanism after a restart.
 func PushToVictoriaMetrics() {
-	endpoint := "http://100.118.142.45:8428"
+	endpoint := config.App.System.VMEndpoint
 	outputDir := "output"
 
 	utils.LogInfo(">>> Đẩy dữ liệu lên VictoriaMetrics...")
@@ -314,5 +328,29 @@ func PushToVictoriaMetrics() {
 		utils.LogError("[ERROR] Lỗi push VM: %v", err)
 	} else {
 		utils.LogInfo("[SUCCESS] Push VictoriaMetrics thành công!")
+	}
+}
+
+// ConvertDeviceMetricsDirect converts a GenericData struct directly to Prometheus metric lines
+// without involving the filesystem. Returns the station extracted from the device's site + elementDn path or uses a provided stationHint.
+func ConvertDeviceMetricsDirect(data GenericData, stationHint string) []string {
+	switch data.Measurement {
+	case "plant":
+		plant := PlantData{
+			Timestamp:   data.Timestamp,
+			SiteName:    data.SiteName,
+			SiteID:      data.SiteID,
+			Measurement: data.Measurement,
+			Fields:      data.Fields,
+		}
+		return convertPlantMetrics(plant)
+	case "inverter":
+		return convertDeviceMetrics("shundao_inverter", data, stationHint)
+	case "zonemeter":
+		return convertDeviceMetrics("shundao_zonemeter", data, stationHint)
+	case "sensor":
+		return convertDeviceMetrics("shundao_sensor", data, stationHint)
+	default:
+		return convertDeviceMetrics("shundao_"+data.Measurement, data, stationHint)
 	}
 }

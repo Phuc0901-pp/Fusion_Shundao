@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
@@ -8,6 +8,7 @@ import { ChartControls, type ViewMode } from './ChartControls';
 import { DailyLineChart } from './DailyLineChart';
 import { MonthlyBarChart } from './MonthlyBarChart';
 import type { ProductionDataPoint } from '../../types';
+import { SOLAR_START_HOUR, SOLAR_END_HOUR } from '../../config/constants';
 
 interface MonthlyDataPoint {
     date: string;
@@ -22,43 +23,55 @@ interface ProductionChartProps {
     loading?: boolean;
 }
 
+// Helper: get current year-month as "YYYY-MM"
+const getCurrentYearMonth = (): string => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
 const ProductionChartComponent: React.FC<ProductionChartProps> = ({ data, loading = false }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const [visibleSites, setVisibleSites] = useState({ site1: true, site2: true });
+    const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentYearMonth);
 
-    // Fetch monthly data when in month mode
+    // Fetch monthly data when in month mode, keyed by selectedMonth so it refetches on month change
     const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
-        queryKey: ['monthlyProduction'],
-        queryFn: () => api.get('/production-monthly') as Promise<MonthlyDataPoint[]>,
+        queryKey: ['monthlyProduction', selectedMonth],
+        queryFn: () => api.get(`/production-monthly?month=${selectedMonth}`) as Promise<MonthlyDataPoint[]>,
         enabled: viewMode === 'month',
         staleTime: 60000,
     });
 
-    // Transform daily data (Filter 06:00 - 18:00)
-    const filterTimeRange = (d: ProductionDataPoint) => {
-        const [h, m] = d.date.split(':').map(Number);
-        if (h < 6 || h > 18) return false;
-        if (h === 18 && m > 0) return false; // Exclude 18:05, 18:10...
-        return true;
-    };
-
-    // Filter daily data
-    const filteredDailyData = data.filter(filterTimeRange);
-
     const currentLoading = viewMode === 'day' ? loading : monthlyLoading;
 
-    // Calculate Totals based on visible sites (using DailyEnergy as Power)
-    const validDailyPowerPoints = data.filter(d =>
-        (d.site1DailyEnergy != null && d.site1DailyEnergy > 0) || (d.site2DailyEnergy != null && d.site2DailyEnergy > 0)
-    );
+    // Memoize: Filter daily data to 06:00-18:00 window
+    const filteredDailyData = useMemo(() => {
+        return data.filter(d => {
+            const [h, m] = d.date.split(':').map(Number);
+            if (h < SOLAR_START_HOUR || h > SOLAR_END_HOUR) return false;
+            if (h === SOLAR_END_HOUR && m > 0) return false;
+            return true;
+        });
+    }, [data]);
 
-    const totalS1MWh = viewMode === 'day'
-        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site1DailyEnergy || 0), 0) * (5 / 60)) / 1000
-        : (monthlyData || []).reduce((sum, d) => sum + (d.site1MaxPower || 0), 0) / 1000;
-
-    const totalS2MWh = viewMode === 'day'
-        ? (validDailyPowerPoints.reduce((sum, d) => sum + (d.site2DailyEnergy || 0), 0) * (5 / 60)) / 1000
-        : (monthlyData || []).reduce((sum, d) => sum + (d.site2MaxPower || 0), 0) / 1000;
+    // Memoize: Total MWh per site
+    const { totalS1MWh, totalS2MWh } = useMemo(() => {
+        if (viewMode === 'day') {
+            const validPoints = data.filter(d =>
+                (d.site1DailyEnergy != null && d.site1DailyEnergy > 0) ||
+                (d.site2DailyEnergy != null && d.site2DailyEnergy > 0)
+            );
+            return {
+                totalS1MWh: (validPoints.reduce((sum, d) => sum + (d.site1DailyEnergy || 0), 0) * (5 / 60)) / 1000,
+                totalS2MWh: (validPoints.reduce((sum, d) => sum + (d.site2DailyEnergy || 0), 0) * (5 / 60)) / 1000,
+            };
+        }
+        const monthly = monthlyData || [];
+        return {
+            totalS1MWh: monthly.reduce((sum, d) => sum + (d.site1MaxPower || 0), 0) / 1000,
+            totalS2MWh: monthly.reduce((sum, d) => sum + (d.site2MaxPower || 0), 0) / 1000,
+        };
+    }, [data, viewMode, monthlyData]);
 
     const toggleSite = (site: 'site1' | 'site2') => {
         setVisibleSites(prev => ({ ...prev, [site]: !prev[site] }));
@@ -107,6 +120,8 @@ const ProductionChartComponent: React.FC<ProductionChartProps> = ({ data, loadin
                         onViewModeChange={setViewMode}
                         visibleSites={visibleSites}
                         onToggleSite={toggleSite}
+                        selectedMonth={selectedMonth}
+                        onMonthChange={setSelectedMonth}
                     />
                 </div>
             </CardHeader>
@@ -126,5 +141,7 @@ const ProductionChartComponent: React.FC<ProductionChartProps> = ({ data, loadin
         </Card>
     );
 };
-
-export const ProductionChart = React.memo(ProductionChartComponent);
+export const ProductionChart = React.memo(
+    ProductionChartComponent,
+    (prev, next) => JSON.stringify(prev) === JSON.stringify(next)
+);

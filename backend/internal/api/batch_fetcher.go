@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
 
@@ -17,8 +18,9 @@ type BatchResult struct {
 	Error   string                 `json:"error"`
 }
 
-// FetchBatchRealtimeData fetches realtime data for multiple devices in parallel
-// isInverter: if true, adds displayAccessModel=true param
+// FetchBatchRealtimeData fetches realtime data for multiple devices in parallel.
+// Uses native JS async/await inside chromedp.Evaluate so Go does NOT need a
+// poll loop – the Goroutine simply waits for the JS Promise to settle.
 func (f *Fetcher) FetchBatchRealtimeData(ctx context.Context, deviceDns []string, isInverter bool) ([]BatchResult, error) {
 	f.mu.Lock()
 	token := f.roarand
@@ -38,33 +40,28 @@ func (f *Fetcher) FetchBatchRealtimeData(ctx context.Context, deviceDns []string
 		extraParams = "&displayAccessModel=true"
 	}
 
-	// Use a random variable name to avoid collision
-	resVar := fmt.Sprintf("_res_%d", time.Now().UnixNano())
-
+	// === ASYNC JS – chromedp awaits the promise natively, no Go polling needed ===
 	js := fmt.Sprintf(`
-		(function() {
-			window["%s"] = null; // Reset
+		(async function() {
 			var deviceDns = %s;
 			var url = 'https://intl.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data';
 			var extraParams = '%s';
 			var token = '%s';
-			
+
 			var promises = deviceDns.map(function(dn) {
-				return new Promise(function(resolve, reject) {
+				return new Promise(function(resolve) {
 					var xhr = new XMLHttpRequest();
 					var fullUrl = url + '?deviceDn=' + encodeURIComponent(dn) + extraParams + '&_=' + Date.now();
-					xhr.open('GET', fullUrl, true); // Asynchronous
+					xhr.open('GET', fullUrl, true);
 					xhr.setRequestHeader('Accept', 'application/json');
 					xhr.setRequestHeader('X-Timezone-Offset', '420');
 					xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 					xhr.setRequestHeader('Roarand', token);
-					
 					xhr.onreadystatechange = function() {
 						if (xhr.readyState === 4) {
 							if (xhr.status === 200) {
 								try {
-									var json = JSON.parse(xhr.responseText);
-									resolve({dn: dn, data: json, success: true, error: ""});
+									resolve({dn: dn, data: JSON.parse(xhr.responseText), success: true, error: ""});
 								} catch (e) {
 									resolve({dn: dn, data: null, success: false, error: "Parse error"});
 								}
@@ -77,29 +74,18 @@ func (f *Fetcher) FetchBatchRealtimeData(ctx context.Context, deviceDns []string
 				});
 			});
 
-			Promise.all(promises).then(function(results) {
-				window["%s"] = JSON.stringify(results);
-			});
+			var results = await Promise.all(promises);
+			return JSON.stringify(results);
 		})()
-	`, resVar, dnsJson, extraParams, token, resVar)
+	`, dnsJson, extraParams, token)
 
-	// Execute JS initiation
-	if err := chromedp.Run(ctx, chromedp.Evaluate(js, nil)); err != nil {
+	var resultStr string
+	if err := chromedp.Run(ctx, chromedp.Evaluate(js, &resultStr, func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) })); err != nil {
 		return nil, fmt.Errorf("batch script error: %v", err)
 	}
 
-	// Poll for result
-	var resultStr string
-	for i := 0; i < 40; i++ { // Wait up to 20s (500ms interval)
-		time.Sleep(500 * time.Millisecond)
-		err := chromedp.Run(ctx, chromedp.Evaluate(fmt.Sprintf(`window["%s"]`, resVar), &resultStr))
-		if err == nil && resultStr != "" && resultStr != "null" {
-			break
-		}
-	}
-
 	if resultStr == "" || resultStr == "null" {
-		return nil, fmt.Errorf("batch fetch timeout")
+		return nil, fmt.Errorf("batch fetch returned empty result")
 	}
 
 	var results []BatchResult
@@ -110,7 +96,8 @@ func (f *Fetcher) FetchBatchRealtimeData(ctx context.Context, deviceDns []string
 	return results, nil
 }
 
-// FetchBatchInverterStringData fetches string data for multiple inverters in parallel
+// FetchBatchInverterStringData fetches string data for multiple inverters in parallel.
+// Uses native JS async/await – no Go poll loop.
 func (f *Fetcher) FetchBatchInverterStringData(ctx context.Context, deviceDns []string) ([]BatchResult, error) {
 	f.mu.Lock()
 	token := f.roarand
@@ -126,7 +113,6 @@ func (f *Fetcher) FetchBatchInverterStringData(ctx context.Context, deviceDns []
 
 	dnsJson, _ := json.Marshal(deviceDns)
 
-	// Build signalIds query string
 	signalIdsStr := ""
 	for i, id := range StringDataSignalIds {
 		if i > 0 {
@@ -136,32 +122,27 @@ func (f *Fetcher) FetchBatchInverterStringData(ctx context.Context, deviceDns []
 		}
 	}
 
-	resVar := fmt.Sprintf("_str_res_%d", time.Now().UnixNano())
-
 	js := fmt.Sprintf(`
-		(function() {
-			window["%s"] = null;
+		(async function() {
 			var deviceDns = %s;
 			var url = 'https://intl.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-real-kpi';
 			var signalParams = '%s';
 			var token = '%s';
-			
+
 			var promises = deviceDns.map(function(dn) {
-				return new Promise(function(resolve, reject) {
+				return new Promise(function(resolve) {
 					var xhr = new XMLHttpRequest();
 					var fullUrl = url + '?signalIds=' + signalParams + '&deviceDn=' + encodeURIComponent(dn) + '&_=' + Date.now();
-					xhr.open('GET', fullUrl, true); // Asynchronous
+					xhr.open('GET', fullUrl, true);
 					xhr.setRequestHeader('Accept', 'application/json');
 					xhr.setRequestHeader('X-Timezone-Offset', '420');
 					xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 					xhr.setRequestHeader('Roarand', token);
-					
 					xhr.onreadystatechange = function() {
 						if (xhr.readyState === 4) {
 							if (xhr.status === 200) {
 								try {
-									var json = JSON.parse(xhr.responseText);
-									resolve({dn: dn, data: json, success: true, error: ""});
+									resolve({dn: dn, data: JSON.parse(xhr.responseText), success: true, error: ""});
 								} catch (e) {
 									resolve({dn: dn, data: null, success: false, error: "Parse error"});
 								}
@@ -174,30 +155,18 @@ func (f *Fetcher) FetchBatchInverterStringData(ctx context.Context, deviceDns []
 				});
 			});
 
-			Promise.all(promises).then(function(results) {
-				window["%s"] = JSON.stringify(results);
-			});
+			var results = await Promise.all(promises);
+			return JSON.stringify(results);
 		})()
-	`, resVar, dnsJson, signalIdsStr, token, resVar)
+	`, dnsJson, signalIdsStr, token)
 
-	// Execute JS initiation
-	if err := chromedp.Run(ctx, chromedp.Evaluate(js, nil)); err != nil {
+	var resultStr string
+	if err := chromedp.Run(ctx, chromedp.Evaluate(js, &resultStr, func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) })); err != nil {
 		return nil, fmt.Errorf("batch string script error: %v", err)
 	}
 
-	// Poll for result
-	var resultStr string
-	for i := 0; i < 40; i++ { // Wait up to 20s
-		time.Sleep(500 * time.Millisecond)
-		err := chromedp.Run(ctx, chromedp.Evaluate(fmt.Sprintf(`window["%s"]`, resVar), &resultStr))
-		if err == nil && resultStr != "" && resultStr != "null" {
-			break
-		}
-	}
-
 	if resultStr == "" || resultStr == "null" {
-		// Just return empty if timeout, maybe partial fail
-		return nil, fmt.Errorf("batch string fetch timeout")
+		return nil, fmt.Errorf("batch string fetch returned empty result")
 	}
 
 	var results []BatchResult
@@ -207,3 +176,6 @@ func (f *Fetcher) FetchBatchInverterStringData(ctx context.Context, deviceDns []
 
 	return results, nil
 }
+
+// keepTime keeps the time import alive if needed elsewhere
+var _ = time.Now

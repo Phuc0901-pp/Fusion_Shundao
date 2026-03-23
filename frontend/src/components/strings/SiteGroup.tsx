@@ -42,9 +42,6 @@ export const SiteGroup: React.FC<SiteGroupProps> = React.memo(({ site, selectedL
                             <Pencil size={14} />
                         </button>
                     )}
-                    <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">
-                        Mã trạm: {site.id}
-                    </span>
                 </div>
             )}
 

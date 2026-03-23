@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Inverter } from '../../types';
 import { InverterDetailModal } from './InverterDetailModal';
 import { RenameModal } from '../modals/RenameModal';
-import { Zap, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
 interface InverterCardProps {
     inverter: Inverter;
@@ -14,6 +14,7 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
     const [showRename, setShowRename] = useState(false);
     const [displayName, setDisplayName] = useState(inverter.name);
     const [stringSet, setStringSet] = useState(inverter.numberStringSet || '');
+    const [excludedStrings, setExcludedStrings] = useState(inverter.excludedStrings || '');
 
     // Determine Status
     const status = inverter.deviceStatus || "";
@@ -31,33 +32,54 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
     let normalCount = 0;
     let warningCount = 0;
     const abnormalStrings: string[] = [];
-    const [showAbnormalDetails, setShowAbnormalDetails] = useState(false);
 
     // Time-based logic
     const currentHour = new Date().getHours();
     const isWorkingHours = currentHour >= 6 && currentHour < 18;
 
+    // Parse excluded strings
+    const excludedIndices = new Set(
+        excludedStrings
+            .split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => !isNaN(n))
+    );
+
+    let avgCurrentVal = 0;
+    let avgVoltageVal = 0;
+
     if (setupCount > 0) {
-        // 1. Identify "Actual/Connected" strings (Voltage > 0)
-        const connectedStrings: { index: number, current: number, id: string }[] = [];
+        // 1. Identify "Actual/Connected" strings (Voltage > 10 AND not excluded)
+        const connectedStrings: { index: number, current: number, voltage: number, id: string }[] = [];
+        const validStrings: { index: number, current: number, voltage: number, id: string }[] = [];
 
         for (let i = 1; i <= setupCount; i++) {
+            if (excludedIndices.has(i)) continue; // Skip excluded strings
+
             const s = getString(i);
+            validStrings.push({ index: i, current: s.current, voltage: s.voltage, id: `PV${i}` });
+
             if (s.voltage > 10) { // Assume > 10V means connected
-                connectedStrings.push({ index: i, current: s.current, id: `PV${i}` });
+                connectedStrings.push({ index: i, current: s.current, voltage: s.voltage, id: `PV${i}` });
             }
+        }
+
+        if (connectedStrings.length > 0) {
+            const totalC = connectedStrings.reduce((acc, str) => acc + str.current, 0);
+            avgCurrentVal = totalC / connectedStrings.length;
+        }
+
+        if (validStrings.length > 0) {
+            const totalV = validStrings.reduce((acc, str) => acc + str.voltage, 0);
+            avgVoltageVal = totalV / validStrings.length;
         }
 
         // 2. During off-hours, skip threshold analysis
         if (!isWorkingHours) {
             normalCount = connectedStrings.length;
         } else if (connectedStrings.length > 0) {
-            // 3. Calculate Average of Actual strings
-            const totalCurrent = connectedStrings.reduce((a, b) => a + b.current, 0);
-            const avgCurrent = totalCurrent / connectedStrings.length;
-
             // 4. Compare each Actual string against 80% of Avg
-            const threshold = avgCurrent * 0.8;
+            const threshold = avgCurrentVal * 0.8;
 
             for (const item of connectedStrings) {
                 if (item.current >= threshold) {
@@ -109,7 +131,7 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
                     </div>
 
                     {/* Main Metrics Grid */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-4">
                         <div>
                             <p className="text-[8px] text-slate-400 font-medium uppercase mb-0.5">Công suất thuần</p>
                             <div className="flex items-baseline gap-1">
@@ -127,6 +149,26 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
                                     {inverter.eDailyKwh?.toFixed(1) || '0.0'}
                                 </span>
                                 <span className="text-xs text-slate-500 font-medium">kWh</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-[8px] text-slate-400 font-medium uppercase mb-0.5">Dòng trung bình</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-[12px] font-bold font-mono tracking-tight text-amber-600">
+                                    {avgCurrentVal.toFixed(2)}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">A</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-[8px] text-slate-400 font-medium uppercase mb-0.5">Áp trung bình</p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-[12px] font-bold font-mono tracking-tight text-blue-600">
+                                    {avgVoltageVal.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">V</span>
                             </div>
                         </div>
                     </div>
@@ -179,7 +221,12 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
                 <InverterDetailModal
                     isOpen={showModal}
                     onClose={() => setShowModal(false)}
-                    inverter={inverter}
+                    inverter={{
+                        ...inverter,
+                        name: displayName,
+                        numberStringSet: stringSet,
+                        excludedStrings: excludedStrings
+                    }}
                 />
             )}
 
@@ -193,9 +240,11 @@ export const InverterCard: React.FC<InverterCardProps> = React.memo(({ inverter 
                     currentName={displayName}
                     defaultName={inverter.defaultName || inverter.id}
                     currentStringSet={stringSet}
-                    onRenamed={(n, s) => {
+                    currentExcludedStrings={excludedStrings}
+                    onRenamed={(n, s, ex) => {
                         setDisplayName(n);
                         if (s !== undefined) setStringSet(s);
+                        if (ex !== undefined) setExcludedStrings(ex);
                     }}
                 />
             )}

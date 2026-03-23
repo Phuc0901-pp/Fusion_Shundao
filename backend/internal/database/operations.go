@@ -84,8 +84,9 @@ func UpsertDevice(id, smartLoggerID, name, deviceType, model, sn string) (bool, 
 
 // EntityConfig holds custom configuration for an entity
 type EntityConfig struct {
-	Name      string
-	StringSet string
+	Name             string
+	StringSet        string
+	ExcludedStrings  string // comma-separated string indices e.g. "4,8"
 }
 
 // GetAllEntityConfigs returns a map of ID -> EntityConfig for all entities
@@ -112,7 +113,7 @@ func GetAllEntityConfigs() (map[string]EntityConfig, error) {
 
 	// 3. Devices
 	var devices []Device
-	if err := DB.Select("id, name_change, number_set_up_string").Where("(name_change IS NOT NULL AND name_change != '') OR (number_set_up_string IS NOT NULL AND number_set_up_string != '')").Find(&devices).Error; err != nil {
+	if err := DB.Select("id, name_change, number_set_up_string, excluded_strings").Where("(name_change IS NOT NULL AND name_change != '') OR (number_set_up_string IS NOT NULL AND number_set_up_string != '') OR (excluded_strings IS NOT NULL AND excluded_strings != '')").Find(&devices).Error; err != nil {
 		return nil, err
 	}
 	for _, d := range devices {
@@ -122,6 +123,9 @@ func GetAllEntityConfigs() (map[string]EntityConfig, error) {
 		}
 		if d.NumberStringSet != nil {
 			cfg.StringSet = *d.NumberStringSet
+		}
+		if d.ExcludedStrings != nil {
+			cfg.ExcludedStrings = *d.ExcludedStrings
 		}
 		configs[d.ID] = cfg
 	}
@@ -156,6 +160,18 @@ func UpdateNameChange(entityType, id, newName string) error {
 // It correctly handles empty string input by setting the column to NULL or empty string
 func UpdateDeviceStringSet(id, stringSet string) error {
 	result := DB.Model(&Device{}).Where("id = ?", id).Update("number_set_up_string", stringSet)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no device found with ID %s", id)
+	}
+	return nil
+}
+
+// UpdateDeviceExcludedStrings updates the excluded_strings column for a device
+func UpdateDeviceExcludedStrings(id, excludedStrings string) error {
+	result := DB.Model(&Device{}).Where("id = ?", id).Update("excluded_strings", excludedStrings)
 	if result.Error != nil {
 		return result.Error
 	}

@@ -16,11 +16,11 @@ func generateDeviceAlerts(sites []SiteNode, now time.Time) []AlertMessage {
 		for _, logger := range site.Loggers {
 			for _, inverter := range logger.Inverters {
 				status := strings.ToLower(inverter.DeviceStatus)
-				
+
 				hasStrings := len(inverter.Strings) > 0
 				hasVoltage := false
 				hasCurrent := false
-				
+
 				for _, s := range inverter.Strings {
 					if s.Voltage > 0 {
 						hasVoltage = true
@@ -53,46 +53,46 @@ func generateDeviceAlerts(sites []SiteNode, now time.Time) []AlertMessage {
 					} else {
 						msg = "Trạng thái: Không xác định"
 					}
-					
+
 					if status == "fault" || strings.Contains(status, "error") {
 						level = "error"
 					}
 				}
 
-					if shouldAlert {
+				if shouldAlert {
+					alerts = append(alerts, AlertMessage{
+						ID:         fmt.Sprintf("inv-%s-%d", inverter.ID, ts),
+						Timestamp:  ts,
+						Level:      level,
+						Message:    msg,
+						Source:     fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
+						DeviceID:   inverter.ID,
+						DeviceType: "inverter",
+					})
+				}
+
+				// Check for zero power when should be producing (6am - 6pm)
+				if hour >= 6 && hour <= 18 {
+					if inverter.POutKw == 0 && status == "grid connected" {
 						alerts = append(alerts, AlertMessage{
-							ID:         fmt.Sprintf("inv-%s-%d", inverter.ID, ts),
+							ID:         fmt.Sprintf("inv-nopower-%s-%d", inverter.ID, ts),
 							Timestamp:  ts,
-							Level:      level,
-							Message:    msg,
+							Level:      "warning",
+							Message:    "Công suất đầu ra = 0 kW trong giờ làm việc",
 							Source:     fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
 							DeviceID:   inverter.ID,
 							DeviceType: "inverter",
 						})
 					}
-
-					// Check for zero power when should be producing (6am - 6pm)
-					if hour >= 6 && hour <= 18 {
-						if inverter.POutKw == 0 && status == "grid connected" {
-							alerts = append(alerts, AlertMessage{
-								ID:         fmt.Sprintf("inv-nopower-%s-%d", inverter.ID, ts),
-								Timestamp:  ts,
-								Level:      "warning",
-								Message:    "Công suất đầu ra = 0 kW trong giờ làm việc",
-								Source:     fmt.Sprintf("%s - %s", logger.Name, inverter.Name),
-								DeviceID:   inverter.ID,
-								DeviceType: "inverter",
-							})
-						}
-					}
+				}
 			}
 		}
 	}
-	
+
 	// Sort by level (error=0, warning=1, info=2)
 	// Stability sort
 	// Using generic sort not easy in Go < 1.21 without slices package, but I can implement simple logic if needed.
 	// Or just leave unsorted, frontend can sort. But backend ideally provides sorted data.
-	
+
 	return alerts
 }

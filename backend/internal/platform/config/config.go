@@ -9,12 +9,13 @@ import (
 
 // AppConfig represents the structure of app.json
 type AppConfig struct {
-	Browser   BrowserConfig   `json:"browser"`
-	API       APIConfig       `json:"api"`
-	Selectors SelectorConfig  `json:"selectors"`
-	System    SystemConfig    `json:"system"`
-	Database  DatabaseConfig  `json:"database"`
-	Sites     []SiteConfig    `json:"sites"`
+	Browser     BrowserConfig     `json:"browser"`
+	API         APIConfig         `json:"api"`
+	Selectors   SelectorConfig    `json:"selectors"`
+	System      SystemConfig      `json:"system"`
+	Credentials CredentialsConfig `json:"credentials"`
+	Database    DatabaseConfig    `json:"database"`
+	Sites       []SiteConfig      `json:"sites"`
 }
 
 type DatabaseConfig struct {
@@ -58,6 +59,17 @@ type SystemConfig struct {
 	BatchSizeInverter    int    `json:"batch_size_inverter"`
 	BatchSizeMeter       int    `json:"batch_size_meter"`
 	FetchIntervalMinutes int    `json:"fetch_interval_minutes"`
+	BrowserTTLHours      int    `json:"browser_ttl_hours"`
+	TelegramBotToken     string `json:"telegram_bot_token"`
+	TelegramChatID       string `json:"telegram_chat_id"`
+	MaxLoginRetries      int    `json:"max_login_retries"`
+}
+
+// CredentialsConfig holds FusionSolar login credentials
+type CredentialsConfig struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	LoginURL string `json:"login_url"`
 }
 
 // SignalsConfig represents the structure of signals.json
@@ -96,7 +108,7 @@ func loadJSON(path string, target interface{}) error {
 		// Try going up one level if we are in src/
 		path = filepath.Join("..", path)
 	}
-	
+
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return err

@@ -5,7 +5,7 @@ import { PVDetailModal } from './PVDetailModal';
 
 // Status object structure for smart alerts
 export interface PVStringStatus {
-    state: 'normal' | 'warning' | 'error' | 'inactive';
+    state: 'normal' | 'warning' | 'error' | 'inactive' | 'excluded';
     message: string;
     detail?: string; // e.g. "0.4A < 2.0A (80%)"
 }
@@ -37,6 +37,10 @@ export const PVString: React.FC<PVStringProps> = React.memo(({ data, status }) =
                 break;
             case 'inactive':
                 containerClass = "bg-slate-50 border-slate-200 text-slate-400 opacity-60";
+                valueClass = "text-slate-400";
+                break;
+            case 'excluded':
+                containerClass = "bg-slate-100 border-slate-300 text-slate-400 opacity-50 cursor-not-allowed";
                 valueClass = "text-slate-400";
                 break;
             case 'normal':

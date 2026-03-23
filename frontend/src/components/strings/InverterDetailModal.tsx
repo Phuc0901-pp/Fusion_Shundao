@@ -26,12 +26,15 @@ interface StringAnalysis {
     data: StringData;
 }
 
-function analyzeStrings(strings: StringData[]): StringAnalysis[] {
+function analyzeStrings(strings: StringData[], excludedIndices: Set<number>): StringAnalysis[] {
     const currentHour = new Date().getHours();
     const isWorkingHours = currentHour >= WORKING_HOUR_START && currentHour < WORKING_HOUR_END;
 
-    // Step 1: Calculate averages from active strings (V > 10 and I > 0)
-    const activeStrings = strings.filter(s => s.voltage > 10 && s.current > 0);
+    // Step 1: Calculate averages ONLY from active + non-excluded strings
+    const activeStrings = strings.filter((s, idx) => {
+        if (excludedIndices.has(idx + 1)) return false; // 1-based index
+        return s.voltage > 10 && s.current > 0;
+    });
     const avgVoltage = activeStrings.length > 0
         ? activeStrings.reduce((sum, s) => sum + s.voltage, 0) / activeStrings.length
         : 0;
@@ -43,7 +46,20 @@ function analyzeStrings(strings: StringData[]): StringAnalysis[] {
     const thresholdCurrent = avgCurrent * THRESHOLD_PERCENT;
 
     // Step 2: Analyze each string
-    return strings.map(s => {
+    return strings.map((s, idx) => {
+        const stringIndex = idx + 1; // 1-based
+
+        // ─── CASE 0: Excluded (not installed / intentionally disabled) ────────────
+        if (excludedIndices.has(stringIndex)) {
+            return {
+                data: s,
+                status: {
+                    state: 'excluded' as const,
+                    message: 'Chuỗi không sử dụng (đã cấu hình loại trừ)',
+                },
+            };
+        }
+
         const hasVoltage = s.voltage > 10;
         const hasCurrent = s.current > 0;
 
@@ -58,7 +74,6 @@ function analyzeStrings(strings: StringData[]): StringAnalysis[] {
                     },
                 };
             }
-            // If there IS data outside working hours, it's still "normal"
             return {
                 data: s,
                 status: {
@@ -156,8 +171,18 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = React.mem
         if (e.target === e.currentTarget) onClose();
     }, [onClose]);
 
+    // ─── Parse excluded strings from inverter config ───────────────────────────
+    const excludedIndices = useMemo<Set<number>>(() => {
+        if (!inverter.excludedStrings) return new Set();
+        const indices = inverter.excludedStrings
+            .split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => !isNaN(n));
+        return new Set(indices);
+    }, [inverter.excludedStrings]);
+
     // ─── Smart Alert Analysis ──────────────────────────────────────
-    const stringAnalysis = useMemo(() => analyzeStrings(inverter.strings), [inverter.strings]);
+    const stringAnalysis = useMemo(() => analyzeStrings(inverter.strings, excludedIndices), [inverter.strings, excludedIndices]);
 
     const faultCount = stringAnalysis.filter(a => a.status.state === 'error').length;
     const warningCount = stringAnalysis.filter(a => a.status.state === 'warning').length;
@@ -224,7 +249,7 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = React.mem
                 {/* Body: Horizontal Split */}
                 <div className="flex-1 flex overflow-hidden min-h-0">
                     {/* Left Panel: Details + Chart */}
-                    <div className="flex-[9] overflow-y-auto border-r border-slate-100">
+                    <div className="flex-[9] overflow-y-auto border-r border-slate-100 scrollbar-thin">
                         {/* Inverter Details — data-driven rendering */}
                         <div className="p-6 bg-white border-b border-slate-100">
                             <div className="grid grid-cols-3 gap-x-12 gap-y-4 text-sm">
@@ -246,16 +271,22 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = React.mem
                         {/* Power Chart — Lazy Loaded with Skeleton */}
                         <div className="p-2">
                             <Suspense fallback={<ChartSkeleton />}>
-                                <InverterPowerChart inverterId={inverter.id} inverterName={inverter.name} />
+                                <InverterPowerChart inverterId={inverter.dbId || inverter.id} inverterName={inverter.name} />
                             </Suspense>
                         </div>
                     </div>
 
                     {/* Right Panel: PV Strings */}
-                    <div className="flex-[1] overflow-y-auto bg-slate-50/50 p-5">
-                        <h4 className="flex items-center gap-2 font-semibold text-slate-700 mb-4 sticky top-0 bg-slate-50/90 backdrop-blur-sm py-2 -mt-2 z-10">
-                            <Battery size={18} /> Chuỗi PV
-                        </h4>
+                    <div className="flex-[1] flex flex-col overflow-y-auto bg-slate-50 scrollbar-thin relative">
+                        {/* Sticky Header Full Width */}
+                        <div className="sticky top-0 z-30 bg-slate-50 px-5 pt-5 pb-3 border-b border-slate-100/80 shadow-[0_4px_10px_-5px_rgba(0,0,0,0.05)]">
+                            <h4 className="flex items-center gap-2 font-bold text-slate-700 m-0">
+                                <Battery size={18} className="text-slate-500" /> Chuỗi PV
+                            </h4>
+                        </div>
+                        
+                        {/* Scrollable Content Container */}
+                        <div className="px-5 pt-4 pb-5 flex flex-col">
 
                         {/* ─── Alert Summary Banner ─────────────────────── */}
                         {hasIssues && (
@@ -284,10 +315,18 @@ export const InverterDetailModal: React.FC<InverterDetailModalProps> = React.mem
                             </div>
                         )}
 
-                        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-2 gap-2 pb-2">
-                            {stringAnalysis.map((analysis) => (
-                                <PVString key={analysis.data.id} data={analysis.data} status={analysis.status} />
-                            ))}
+                        {inverter.strings.length === 0 ? (
+                            <div className="flex flex-col flex-1 items-center justify-center text-center text-slate-400 mt-20">
+                                <Battery size={32} className="mb-2 opacity-50" />
+                                <p className="text-sm">Không có dữ liệu chuỗi PV cho Inverter này.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-2 gap-2 pb-2">
+                                {stringAnalysis.map((analysis) => (
+                                    <PVString key={analysis.data.id} data={analysis.data} status={analysis.status} />
+                                ))}
+                            </div>
+                        )}
                         </div>
                     </div>
                 </div>

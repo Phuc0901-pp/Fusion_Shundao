@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"sync"
 	"time"
 
 	"fusion/internal/platform/config"
@@ -34,32 +35,38 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 	}
 
 	rawMap := make(map[string]*RawPoint)
+	var rawMu sync.Mutex
 	getRaw := func(ts time.Time) *RawPoint {
-		// Ensure ts is in the correct location before formatting
-		key := ts.In(loc).Format("15:04") // "HH:mm"
+		key := ts.In(loc).Format("15:04")
+		rawMu.Lock()
+		defer rawMu.Unlock()
 		if _, ok := rawMap[key]; !ok {
 			rawMap[key] = &RawPoint{Date: key}
 		}
 		return rawMap[key]
 	}
 
-	// 1. Site 1 Power (kW)
-	fetchDailyRange(endpoint, `sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})`, start, end, 300, func(ts time.Time, val float64) {
-		getRaw(ts).Site1Power = val
-	})
-	// 2. Site 1 Irradiance (W/m²) - using total_irradiance_wm2
-	fetchDailyRange(endpoint, `avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})`, start, end, 300, func(ts time.Time, val float64) {
-		getRaw(ts).Site1Irradiance = val
-	})
+	// === Concurrent fetching of all 4 time-series (WaitGroup + Mutex) ===
+	var wg sync.WaitGroup
+	type rangeTask struct {
+		query  string
+		setter func(ts time.Time, val float64)
+	}
+	rangeTasks := []rangeTask{
+		{`sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})`, func(ts time.Time, val float64) { getRaw(ts).Site1Power = val }},
+		{`avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})`, func(ts time.Time, val float64) { getRaw(ts).Site1Irradiance = val }},
+		{`sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})`, func(ts time.Time, val float64) { getRaw(ts).Site2Power = val }},
+		{`avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})`, func(ts time.Time, val float64) { getRaw(ts).Site2Irradiance = val }},
+	}
+	for _, t := range rangeTasks {
+		wg.Add(1)
+		go func(task rangeTask) {
+			defer wg.Done()
+			fetchDailyRange(endpoint, task.query, start, end, 300, task.setter)
+		}(t)
+	}
+	wg.Wait()
 
-	// 3. Site 2 Power (kW)
-	fetchDailyRange(endpoint, `sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})`, start, end, 300, func(ts time.Time, val float64) {
-		getRaw(ts).Site2Power = val
-	})
-	// 4. Site 2 Irradiance (W/m²) - using total_irradiance_wm2
-	fetchDailyRange(endpoint, `avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})`, start, end, 300, func(ts time.Time, val float64) {
-		getRaw(ts).Site2Irradiance = val
-	})
 
 	// Helper to safely get raw values (return nil if missing)
 	getRawVal := func(key string) *RawPoint {
@@ -128,22 +135,31 @@ func fetchProductionDataFromVM() []ProductionDataPoint {
 	return result
 }
 
-// fetchMonthlyProductionData fetches daily max power and irradiance from Feb 9 to today
-func fetchMonthlyProductionData() []MonthlyDataPoint {
+// fetchMonthlyProductionData fetches daily total energy and total irradiance for each day of the given month.
+// selectedMonth: any time.Time in the desired month (uses its Year+Month). Zero value = current month.
+func fetchMonthlyProductionData(selectedMonth time.Time) []MonthlyDataPoint {
 	endpoint := config.App.System.VMEndpoint
 	now := time.Now()
 
-	// Start from Feb 9, 2026 (or adjust as needed)
-	startDate := time.Date(2026, 2, 9, 0, 0, 0, 0, time.Local)
-	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.Local)
+	// Default to current month if zero
+	if selectedMonth.IsZero() {
+		selectedMonth = now
+	}
 
-	// Calculate number of days
+	// First day of selected month → last day (or today if current month)
+	startDate := time.Date(selectedMonth.Year(), selectedMonth.Month(), 1, 0, 0, 0, 0, time.Local)
+	lastDay := startDate.AddDate(0, 1, -1) // last day of the month
+	endDate := time.Date(lastDay.Year(), lastDay.Month(), lastDay.Day(), 23, 59, 59, 0, time.Local)
+	// If the selected month is the current month, cap end at today
+	today := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.Local)
+	if endDate.After(today) {
+		endDate = today
+	}
+
+	// Number of days to display
 	numDays := int(endDate.Sub(startDate).Hours()/24) + 1
 	if numDays < 1 {
 		numDays = 1
-	}
-	if numDays > 31 {
-		numDays = 31 // Limit to 31 days
 	}
 
 	result := make([]MonthlyDataPoint, numDays)
@@ -159,11 +175,8 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 	// Helper to convert to pointer
 	toPtr := func(v float64) *float64 { return &v }
 
-	// Fetch max power per day for Site 1
-	// Using max_over_time with 1d step
-	fetchMaxPerDay := func(query string, start, end time.Time, setter func(dayIndex int, val float64)) {
-		// Query: max_over_time(metric[1d])
-		// Step: 86400 (1 day)
+	// fetchPerDay: uses query_range with step=86400 (1 day) to get one value per day
+	fetchPerDay := func(query string, start, end time.Time, setter func(dayIndex int, val float64)) {
 		u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=86400",
 			endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
 
@@ -206,9 +219,10 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 		}
 	}
 
-	// Fetch Site 1 Max Power - use subquery syntax for max of sum
-	fetchMaxPerDay(
-		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_1"})[1d:5m])`,
+	// --- Site 1 ---
+	// Tổng sản lượng ngày (kWh): sum của max edaily_kwh trong ngày (= giá trị cuối ngày của từng inverter)
+	fetchPerDay(
+		`sum(max_over_time(shundao_inverter{name="edaily_kwh", site_name="SHUNDAO_1"}[1d:5m]))`,
 		startDate, endDate,
 		func(i int, v float64) {
 			if v > 0 {
@@ -216,21 +230,21 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 			}
 		},
 	)
+	
+	fetchPerDay(
+        // Lấy giá trị lớn nhất trong ngày của cảm biến (giá trị chốt cuối ngày)
+        `avg(max_over_time(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_1"}[1d:5m]))`,
+        startDate, endDate,
+        func(i int, v float64) {
+            if v >= 0 {
+                result[i].Site1MaxIrrad = toPtr(v)
+            }
+        },
+    )
 
-	// Fetch Site 1 Max Irradiance
-	fetchMaxPerDay(
-		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_1"})[1d:5m])`,
-		startDate, endDate,
-		func(i int, v float64) {
-			if v > 0 {
-				result[i].Site1MaxIrrad = toPtr(v)
-			}
-		},
-	)
-
-	// Fetch Site 2 Max Power
-	fetchMaxPerDay(
-		`max_over_time(sum(shundao_inverter{name="p_out_kw", site_name="SHUNDAO_2"})[1d:5m])`,
+	// --- Site 2 ---
+	fetchPerDay(
+		`sum(max_over_time(shundao_inverter{name="edaily_kwh", site_name="SHUNDAO_2"}[1d:5m]))`,
 		startDate, endDate,
 		func(i int, v float64) {
 			if v > 0 {
@@ -239,16 +253,16 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 		},
 	)
 
-	// Fetch Site 2 Max Irradiance
-	fetchMaxPerDay(
-		`max_over_time(avg(shundao_sensor{name="total_irradiance_wm2", site_name="SHUNDAO_2"})[1d:5m])`,
-		startDate, endDate,
-		func(i int, v float64) {
-			if v > 0 {
-				result[i].Site2MaxIrrad = toPtr(v)
-			}
-		},
-	)
+	fetchPerDay(
+        // Lấy giá trị lớn nhất trong ngày của cảm biến (giá trị chốt cuối ngày)
+        `avg(max_over_time(shundao_sensor{name="daily_irradiation1_mjm2", site_name="SHUNDAO_2"}[1d:5m]))`,
+        startDate, endDate,
+        func(i int, v float64) {
+            if v >= 0 {
+                result[i].Site2MaxIrrad = toPtr(v)
+            }
+        },
+    )
 
 	return result
 }
@@ -256,19 +270,38 @@ func fetchMonthlyProductionData() []MonthlyDataPoint {
 func fetchKPIFromVM() KPIData {
 	endpoint := config.App.System.VMEndpoint
 
-	// Metric names match JSON fields: daily_energy, daily_income, etc.
-	// Metric names match JSON fields: daily_energy, daily_income, etc.
-	// Use last_over_time[1h] to handle stale data (up to 1 hour old)
-	kpi := KPIData{
-		DailyEnergy:       querySum(endpoint, `last_over_time(shundao_plant{name="daily_energy"}[1h])`),
-		TotalEnergy:       querySum(endpoint, `last_over_time(shundao_plant{name="cumulative_energy"}[1h])`),
-		DailyIncome:       querySum(endpoint, `last_over_time(shundao_plant{name="daily_income"}[1h])`),
-		RatedPower:        querySum(endpoint, `last_over_time(shundao_inverter{name="rated_power_kw"}[1h])`),
-		GridSupplyToday:   querySum(endpoint, `last_over_time(shundao_plant{name="daily_ongrid_energy"}[1h])`),
-		CO2Reduction:      querySum(endpoint, `last_over_time(shundao_plant{name="co2_reduction"}[1h])`),
-		TreesPlanted:      querySum(endpoint, `last_over_time(shundao_plant{name="equivalent_trees"}[1h])`),
-		StandardCoalSaved: querySum(endpoint, `last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`),
+	// === Concurrent KPI Fetching (Goroutines + WaitGroup) ===
+	// All 8 HTTP requests fire simultaneously. Total latency = slowest single request.
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	kpi := KPIData{}
+
+	type kpiTask struct {
+		query  string
+		setter func(v float64)
 	}
+
+	tasks := []kpiTask{
+		{`last_over_time(shundao_plant{name="daily_energy"}[1h])`, func(v float64) { mu.Lock(); kpi.DailyEnergy = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="cumulative_energy"}[1h])`, func(v float64) { mu.Lock(); kpi.TotalEnergy = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="daily_income"}[1h])`, func(v float64) { mu.Lock(); kpi.DailyIncome = v; mu.Unlock() }},
+		{`last_over_time(shundao_inverter{name="rated_power_kw"}[1h])`, func(v float64) { mu.Lock(); kpi.RatedPower = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="daily_ongrid_energy"}[1h])`, func(v float64) { mu.Lock(); kpi.GridSupplyToday = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="co2_reduction"}[1h])`, func(v float64) { mu.Lock(); kpi.CO2Reduction = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="equivalent_trees"}[1h])`, func(v float64) { mu.Lock(); kpi.TreesPlanted = v; mu.Unlock() }},
+		{`last_over_time(shundao_plant{name="standard_coal_savings"}[1h])`, func(v float64) { mu.Lock(); kpi.StandardCoalSaved = v; mu.Unlock() }},
+	}
+
+	for _, t := range tasks {
+		wg.Add(1)
+		go func(task kpiTask) {
+			defer wg.Done()
+			v := querySum(endpoint, task.query)
+			task.setter(v)
+		}(t)
+	}
+	wg.Wait()
+
 	return kpi
 }
 
@@ -476,7 +509,7 @@ func fetchInverterPowerData(deviceID string) []InverterPowerPoint {
 
 	// Helper to fetch a single metric and populate the map
 	fetchMetric := func(metricName string, setter func(p *InverterPowerPoint, val float64)) {
-		query := fmt.Sprintf(`shundao_inverter{name="%s", device="%s"}`, metricName, deviceID)
+		query := fmt.Sprintf(`shundao_inverter{name="%s", id="%s"}`, metricName, deviceID)
 		u := fmt.Sprintf("%s/api/v1/query_range?query=%s&start=%d&end=%d&step=300",
 			endpoint, url.QueryEscape(query), start.Unix(), end.Unix())
 

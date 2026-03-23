@@ -1,9 +1,20 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FRONTEND CONFIGURATION (Single Source of Truth)
+// Chỉnh sửa tại đây để điều chỉnh toàn bộ hành vi hệ thống giao diện.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Solar / Working Hours ───────────────────────────────────────────
+/** Giờ bắt đầu thu/hiển thị dữ liệu năng lượng mặt trời */
+export const SOLAR_START_HOUR = 6;
+
+/** Giờ kết thúc thu/hiển thị dữ liệu năng lượng mặt trời */
+export const SOLAR_END_HOUR = 18;
+
 // ─── Refresh Intervals ──────────────────────────────────────────────
 /** Khoảng thời gian auto-refresh cho biểu đồ công suất (ms) */
 export const CHART_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 phút
 
-/** Khoảng thời gian auto-refresh cho dashboard tổng quan (ms) */
-export const DASHBOARD_REFRESH_INTERVAL = 60 * 1000; // 1 phút
+// (Removed DASHBOARD_REFRESH_INTERVAL because SSE is used instead)
 
 // ─── API ────────────────────────────────────────────────────────────
 /** API request timeout (ms) */
@@ -18,6 +29,45 @@ export const CHART_X_AXIS_TICK_COUNT = 12;
 
 /** Thời lượng animation khi dữ liệu thay đổi (ms) */
 export const CHART_ANIMATION_DURATION = 800;
+
+// ─── Smart Alert Algorithm ──────────────────────────────────────────
+/**
+ * Cấu hình thuật toán cảnh báo thông minh (Stateful Debounce).
+ * Thay đổi các giá trị này nếu muốn điều chỉnh độ nhạy hoặc độ trễ cảnh báo.
+ */
+export const ALERT_CONFIG = {
+    /** Tỷ lệ phần trăm ngưỡng: String < X% so với average → Cảnh báo */
+    thresholdPercent: 0.8,
+
+    /** Dòng điện tối thiểu tuyệt đối (A) - Dưới mức này coi là nhiễu rác */
+    minCurrentThresholdA: 0.5,
+
+    /**
+     * Thời gian giữ nguyên lỗi liên tục trước khi phát Alarm (ms).
+     * Faults that self-heal within this window are silently discarded.
+     */
+    debounceMs: 15 * 60 * 1000, // 15 phút
+} as const;
+
+// ─── Audio Assets ───────────────────────────────────────────────────
+/**
+ * Đường dẫn tới các file âm thanh (đặt trong /public/assets/audio/).
+ * Thay đổi tên file hoặc thêm file nhạc mới vào thư mục đó mà không cần sửa code.
+ */
+export const AUDIO_ASSETS = {
+    alarm: '/assets/audio/alarm.mp3',
+    gentleChime: '/assets/audio/gentle_chime.mp3',
+    happyChime: '/assets/audio/happy_chime.mp3',
+} as const;
+
+// ─── Query Client Config ────────────────────────────────────────────
+/** Cấu hình React Query Client mặc định */
+export const QUERY_CONFIG = {
+    /** Thời gian cache data trước khi coi là "stale" (ms) */
+    staleTime: CHART_REFRESH_INTERVAL, // 5 phút
+    /** Số lần retry khi API thất bại */
+    retryCount: 1,
+} as const;
 
 // ─── Colors ─────────────────────────────────────────────────────────
 export const COLORS = {
@@ -48,10 +98,3 @@ export const COLORS = {
         warning: 'bg-yellow-500',
     },
 } as const;
-
-// ─── Solar Hours ────────────────────────────────────────────────────
-/** Giờ bắt đầu hiển thị dữ liệu (Backend) */
-export const SOLAR_START_HOUR = 6;
-
-/** Giờ kết thúc hiển thị dữ liệu (Backend) */
-export const SOLAR_END_HOUR = 18;

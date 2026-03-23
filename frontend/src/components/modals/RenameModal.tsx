@@ -13,7 +13,8 @@ interface RenameModalProps {
     currentName: string;
     defaultName?: string;
     currentStringSet?: string;
-    onRenamed?: (newName: string, newStringSet?: string) => void;
+    currentExcludedStrings?: string;
+    onRenamed?: (newName: string, newStringSet?: string, newExcludedStrings?: string) => void;
 }
 
 export const RenameModal: React.FC<RenameModalProps> = ({
@@ -24,32 +25,37 @@ export const RenameModal: React.FC<RenameModalProps> = ({
     currentName,
     defaultName,
     currentStringSet,
+    currentExcludedStrings,
     onRenamed,
 }) => {
     // Local state to keep track of changes immediately without closing
     const [localName, setLocalName] = useState(currentName);
     const [localStringSet, setLocalStringSet] = useState(currentStringSet);
+    const [localExcludedStrings, setLocalExcludedStrings] = useState(currentExcludedStrings);
 
     useEffect(() => {
         if (isOpen) {
             setLocalName(currentName);
             setLocalStringSet(currentStringSet);
+            setLocalExcludedStrings(currentExcludedStrings);
         }
-    }, [isOpen, currentName, currentStringSet]);
+    }, [isOpen, currentName, currentStringSet, currentExcludedStrings]);
 
-    const performUpdate = async (name: string, strSet: string) => {
+    const performUpdate = async (name: string, strSet: string, excludedStr: string) => {
         try {
             await api.post('/rename', {
                 entityType,
                 id: entityId,
                 newName: name,
                 stringSet: strSet,
+                excludedStrings: excludedStr,
             });
             // Update parent state
-            onRenamed?.(name === '' ? (defaultName || name) : name, strSet);
+            onRenamed?.(name === '' ? (defaultName || name) : name, strSet, excludedStr);
             // Update local state
             setLocalName(name);
             setLocalStringSet(strSet);
+            setLocalExcludedStrings(excludedStr);
         } catch (error) {
             alert('Lỗi khi lưu. Vui lòng thử lại.');
             console.error(error);
@@ -57,13 +63,13 @@ export const RenameModal: React.FC<RenameModalProps> = ({
     };
 
     const handleSaveName = async (newName: string) => {
-        // When saving name, use CURRENT string set
-        await performUpdate(newName, localStringSet || '');
+        // When saving name, use CURRENT string set and excluded strings
+        await performUpdate(newName, localStringSet || '', localExcludedStrings || '');
     };
 
-    const handleSaveStringSetup = async (newStringSet: string) => {
-        // When saving string set, use CURRENT name
-        await performUpdate(localName, newStringSet);
+    const handleSaveStringSetup = async (newStringSet: string, newExcludedStrings: string) => {
+        // When saving string config, use CURRENT name
+        await performUpdate(localName, newStringSet, newExcludedStrings);
     };
 
     if (!isOpen) return null;
@@ -96,6 +102,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({
                     {entityType === 'device' && (
                         <StringSetupEditor
                             currentStringSet={localStringSet || ''}
+                            currentExcludedStrings={localExcludedStrings || ''}
                             onSave={handleSaveStringSetup}
                         />
                     )}

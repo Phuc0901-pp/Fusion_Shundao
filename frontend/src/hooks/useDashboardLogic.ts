@@ -1,5 +1,4 @@
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { fetchDashboardData } from '../services/dashboardService';
+import { useSSEDashboard } from './useSSEDashboard';
 import { useSmartAlerts } from './useSmartAlerts';
 import type { DashboardResponse, DeviceAlert, Site, KPI, Sensor, Meter, ProductionDataPoint } from '../types';
 
@@ -21,14 +20,8 @@ interface DashboardLogicResult {
 }
 
 export const useDashboardLogic = (): DashboardLogicResult => {
-    const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
-        queryKey: ['dashboardData'],
-        queryFn: fetchDashboardData,
-        refetchInterval: 10000, // Fast update: every 10 seconds
-        staleTime: 5000, // Data is fresh for 5 seconds
-        placeholderData: keepPreviousData,
-        retry: 3,
-    });
+    // SSE replaces React Query polling – data is pushed by the server
+    const { data, isLoading, isError, error } = useSSEDashboard();
 
     const {
         alerts: serverAlerts = [],
@@ -39,16 +32,15 @@ export const useDashboardLogic = (): DashboardLogicResult => {
         productionData = []
     } = data || {};
 
-    // Smart alerts: combines server alerts + auto-generated inverter/time alerts with TTS
     const smartAlerts = useSmartAlerts(sites, serverAlerts);
 
     return {
         data,
         isLoading,
-        isFetching,
+        isFetching: false, // SSE has no explicit fetching state
         isError,
         error: error as Error | null,
-        refetch,
+        refetch: () => {}, // No-op: SSE is always connected
         serverAlerts,
         smartAlerts,
         sites,

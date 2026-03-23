@@ -7,7 +7,6 @@ import { ProductionSection } from '../components/dashboard/ProductionSection';
 import { DeviceSection } from '../components/dashboard/DeviceSection';
 import { DashboardSection } from '../components/dashboard/DashboardSection';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
-import { WelcomeOverlay } from '../components/common/WelcomeOverlay';
 import { LoadingScreen } from '../components/common/LoadingScreen';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 
@@ -51,7 +50,6 @@ export const Overview = () => {
     return (
         <div className="space-y-6 animate-fade-in pb-10">
             {isLoading && !data && <LoadingScreen />}
-            <WelcomeOverlay />
             {/* Header */}
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-800">Tổng Quan Hệ Thống</h2>

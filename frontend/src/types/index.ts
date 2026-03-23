@@ -1,9 +1,3 @@
-export interface DeviceData {
-    timestamp: number;
-    device_name: string;
-    device_id: string;
-    data: Record<string, number | string>;
-}
 
 export interface KPI {
     dailyEnergy: number;
@@ -16,16 +10,6 @@ export interface KPI {
     treesPlanted: number;
 }
 
-export interface Environment {
-    co2_reduction: number;
-    tree_planted: number;
-}
-
-export interface StationOverview {
-    station_name: string;
-    kpi: KPI;
-    env: Environment;
-}
 
 // For UI State
 export interface AlertMessage {
@@ -49,6 +33,7 @@ export interface Inverter {
     name: string;
     defaultName?: string;
     numberStringSet?: string;
+    excludedStrings?: string; // Comma-separated indices e.g. "4,8"
     deviceStatus: string;
     strings: StringData[];
     pOutKw?: number;

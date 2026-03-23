@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"math/rand"
+	"net/http"
+	_ "net/http/pprof" // Register pprof handlers at /debug/pprof/
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,12 +15,15 @@ import (
 	"fusion/internal/browser"
 	"fusion/internal/core/formatter"
 	"fusion/internal/database"
+	deliveryhttp "fusion/internal/delivery/http"
 	"fusion/internal/login"
+	"fusion/internal/notify"
 	"fusion/internal/platform/config"
 	"fusion/internal/platform/utils"
 	"fusion/internal/ui"
 	"fusion/internal/victoriametrics"
 )
+
 
 // DeviceTask holds all info needed to process a device
 type DeviceTask struct {
@@ -46,35 +51,66 @@ func main() {
 	// 2. Init Database
 	if err := database.InitDB(); err != nil {
 		utils.LogError("[ERROR] Failed to init database: %v", err)
-		// We might want to exit or continue depending on severity.
-		// For now, let's log and maybe exit if strict.
-		// os.Exit(1)
 	}
 
 	utils.LogInfo("=== FusionSolar Site Data Fetcher (Continuous 24/7) ===")
-	utils.LogInfo("[READY] Đang khởi động (headless check)...")
 
-	// Create headless browser with VERY LONG timeout (e.g., 7 days) to stay alive
-	ctx, cancel := browser.NewHeadless(168 * time.Hour)
-	defer cancel()
+	// Start UI Backend Server – legacy (port 5039)
+	go ui.StartServer()
 
-	// Setup API fetcher
+	// Start Clean Architecture Server – new (port 5040, gradual migration)
+	go deliveryhttp.StartCleanServer()
+
+	// Start pprof debug server (port 6060) – memory & goroutine profiling
+	// Access: go tool pprof http://localhost:6060/debug/pprof/heap
+	go func() {
+		utils.LogInfo("[PPROF] Debug profiling server starting on :6060")
+		if err := http.ListenAndServe(":6060", nil); err != nil {
+			utils.LogError("[PPROF] Failed to start: %v", err)
+		}
+	}()
+
+	// ── Graceful Chrome Restart Loop ─────────────────────────────────
+	// Browser TTL is now read from configs/app.json (system.browser_ttl_hours)
+	ttlHours := config.App.System.BrowserTTLHours
+	if ttlHours <= 0 {
+		ttlHours = 24 // Safe fallback if config field missing
+	}
+	BROWSER_TTL := time.Duration(ttlHours) * time.Hour
+
+	for {
+		utils.LogInfo("[BROWSER] Khởi động Headless Browser mới (TTL: %s)...", BROWSER_TTL)
+		runFetchCycle(BROWSER_TTL)
+		utils.LogInfo("[BROWSER] Browser hết TTL. Đang khởi động lại sau 3 giây...")
+		time.Sleep(3 * time.Second)
+	}
+}
+
+// runFetchCycle starts a headless browser, runs the data-fetch loop until ttl expires,
+// then gracefully cancels the context (which closes Chrome) and returns.
+func runFetchCycle(ttl time.Duration) {
+	ctx, cancel := browser.NewHeadless(ttl)
+	defer cancel() // Always clean up Chrome when this function returns
+
 	fetcher := api.NewFetcher()
 	fetcher.SetupNetworkListener(ctx)
 
 	if err := fetcher.EnableNetwork(ctx); err != nil {
 		utils.LogError("[ERROR] Lỗi enable network: %v", err)
-		os.Exit(1)
+		return
 	}
 
-	// First Run Flag
+	// Login failure counter
+	consecutiveLoginFails := 0
+	maxRetries := config.App.System.MaxLoginRetries
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+
+	deadline := time.Now().Add(ttl)
 	firstRun := true
 
-	// Start UI Backend Server
-	go ui.StartServer()
-
-	// Infinite Loop
-	for {
+	for time.Now().Before(deadline) {
 		utils.LogInfo("[INFO] BẮT ĐẦU CHU KỲ MỚI: %s", time.Now().Format("15:04:05 02/01/2006"))
 
 		// 1. Check Session / Login
@@ -83,12 +119,28 @@ func main() {
 			fetcher.ClearToken()
 
 			if err := login.PerformLogin(ctx); err != nil {
-				utils.LogError("[ERROR] Lỗi đăng nhập: %v. Thử lại sau 1 phút...", err)
-				time.Sleep(1 * time.Minute)
+				consecutiveLoginFails++
+				utils.LogError("[ERROR] Login thất bại (lần %d/%d): %v", consecutiveLoginFails, maxRetries, err)
+
+				// Gửi cảnh báo Telegram sau mỗi lần thất bại
+				notify.AlertLoginFailure(err.Error(), consecutiveLoginFails)
+
+				// Fail-Fast: nếu đăng nhập thất bại vượt ngưỡng → NGẮT luồng
+				if consecutiveLoginFails >= maxRetries {
+					utils.LogError("[CRITICAL] Đã thất bại %d lần liên tiếp. Ngắt luồng để tránh lặp vô nghĩa.", maxRetries)
+					return
+				}
+
+				// Backoff: chờ lâu hơn sau mỗi lần thất bại (1 phút, 2 phút, ...)
+				waitDuration := time.Duration(consecutiveLoginFails) * time.Minute
+				utils.LogInfo("[RETRY] Chờ %v rồi thử lại...", waitDuration)
+				time.Sleep(waitDuration)
 				continue
 			}
 
-			// Initial fetch to capture token if fresh login
+			// Đăng nhập thành công: reset counter
+			consecutiveLoginFails = 0
+
 			utils.LogInfo("[INFO] Lấy dữ liệu trạm để bắt Token...")
 			_, err := fetcher.WaitAndFetchSiteData(ctx)
 			if err != nil {
@@ -107,9 +159,18 @@ func main() {
 		// 3. Push to VictoriaMetrics
 		victoriametrics.PushToVictoriaMetrics()
 
-		// 4. Wait 5 Minutes
-		utils.LogInfo("[WAITTING] CHỜ 5 PHÚT (TIẾP TỤC LÚC " + utils.GetNow().Add(5*time.Minute).Format("15:04:05") + ")")
-		time.Sleep(5 * time.Minute)
+		// 4. Wait for next cycle (configured interval, stop early if TTL is about to expire)
+		fetchInterval := time.Duration(config.App.System.FetchIntervalMinutes) * time.Minute
+		if fetchInterval <= 0 {
+			fetchInterval = 5 * time.Minute // Safe fallback
+		}
+		nextWake := time.Now().Add(fetchInterval)
+		if nextWake.After(deadline) {
+			utils.LogInfo("[BROWSER] TTL sắp hết – dừng vòng lặp sớm để restart browser.")
+			break
+		}
+		utils.LogInfo("[WAITTING] CHỠ %d PHÚT (TIẾP TỤC LÚC " + utils.GetNow().Add(fetchInterval).Format("15:04:05") + ")", config.App.System.FetchIntervalMinutes)
+		time.Sleep(fetchInterval)
 	}
 }
 
@@ -270,8 +331,15 @@ func processInverterBatch(ctx context.Context, f *api.Fetcher, tasks []DeviceTas
 			taskMap[t.Device.ElementDn] = t
 		}
 
-		rtResults, _ := f.FetchBatchRealtimeData(ctx, dns, true)
-		strResults, _ := f.FetchBatchInverterStringData(ctx, dns)
+		rtResults, errRt := f.FetchBatchRealtimeData(ctx, dns, true)
+		if errRt != nil {
+			utils.LogError("[ERROR] FetchBatchRealtimeData failed: %v", errRt)
+		}
+		strResults, errStr := f.FetchBatchInverterStringData(ctx, dns)
+		if errStr != nil {
+			utils.LogError("[ERROR] FetchBatchInverterStringData failed: %v", errStr)
+		}
+
 
 		rtMap := make(map[string]map[string]interface{})
 		for _, r := range rtResults {
@@ -323,7 +391,10 @@ func processSimpleDeviceBatch(ctx context.Context, f *api.Fetcher, tasks []Devic
 			taskMap[t.Device.ElementDn] = t
 		}
 
-		rtResults, _ := f.FetchBatchRealtimeData(ctx, dns, false)
+		rtResults, errRt := f.FetchBatchRealtimeData(ctx, dns, false)
+		if errRt != nil {
+			utils.LogError("[ERROR] FetchBatchRealtimeData (METER/SENSOR) failed: %v", errRt)
+		}
 
 		for _, res := range rtResults {
 			if res.Success && res.Data != nil {
