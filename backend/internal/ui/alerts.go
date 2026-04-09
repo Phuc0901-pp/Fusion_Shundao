@@ -58,6 +58,12 @@ func maybeResetAtMidnight(now time.Time) {
 // It uses the same stateful-debounce algorithm that previously lived in the
 // React hook useSmartAlerts.ts, now running 24/7 inside the Go backend.
 func generateSmartAlerts(sites []SiteNode, now time.Time) []AlertMessage {
+	return generateSmartAlertsInternal(sites, now, alertDebounceMinutes)
+}
+
+// generateSmartAlertsInternal is the testable core. debounceMin=0 bypasses
+// the 15-minute confirmation window (used in unit tests).
+func generateSmartAlertsInternal(sites []SiteNode, now time.Time, debounceMin int) []AlertMessage {
 	maybeResetAtMidnight(now)
 
 	var alerts []AlertMessage
@@ -77,6 +83,82 @@ func generateSmartAlerts(sites []SiteNode, now time.Time) []AlertMessage {
 	for _, site := range sites {
 		for _, logger := range site.Loggers {
 			for _, inverter := range logger.Inverters {
+
+				// ── Inverter-level checks (DeviceStatus & POutKw) ──────────
+				//  1. Device in Fault state
+				if inverter.DeviceStatus == "Fault" {
+					baseKey := fmt.Sprintf("%s-%s-%s-fault", site.ID, logger.ID, inverter.ID)
+					currentCycleKeys[baseKey] = struct{}{}
+					if _, exists := pendingFaults.Load(baseKey); !exists {
+						pendingFaults.Store(baseKey, &pendingFault{
+							firstSeenAt:  now,
+							faultType:    "fault",
+							message:      "Inverter không hoạt động",
+							inverterId:   inverter.ID,
+							inverterName: inverter.Name,
+							loggerName:   logger.Name,
+							siteName:     site.Name,
+						})
+					}
+				}
+
+				//  2. Zero AC output power during working hours (but strings OK)
+				if inverter.POutKw == 0 && inverter.DeviceStatus != "Fault" {
+					// Only alert when at least one string has current (sun is shining)
+					hasActivePV := false
+					for _, s := range inverter.Strings {
+						if s.Current > alertMinCurrentThreshold {
+							hasActivePV = true
+							break
+						}
+					}
+					if hasActivePV {
+						baseKey := fmt.Sprintf("%s-%s-%s-zeroPow", site.ID, logger.ID, inverter.ID)
+						currentCycleKeys[baseKey] = struct{}{}
+						if _, exists := pendingFaults.Load(baseKey); !exists {
+							pendingFaults.Store(baseKey, &pendingFault{
+								firstSeenAt:  now,
+								faultType:    "zeroPow",
+								message:      "Công suất đầu ra = 0 kW trong giờ làm việc",
+								inverterId:   inverter.ID,
+								inverterName: inverter.Name,
+								loggerName:   logger.Name,
+								siteName:     site.Name,
+							})
+						}
+					}
+				}
+
+				//  3. No current on any string (inverter has voltage but zero I)
+				if inverter.DeviceStatus != "Fault" {
+					allStrings := inverter.Strings
+					hasVoltage := false
+					hasAnyCurrent := false
+					for _, s := range allStrings {
+						if s.Voltage > 10 {
+							hasVoltage = true
+						}
+						if s.Current > alertMinCurrentThreshold {
+							hasAnyCurrent = true
+						}
+					}
+					if hasVoltage && !hasAnyCurrent && len(allStrings) > 0 {
+						baseKey := fmt.Sprintf("%s-%s-%s-noI", site.ID, logger.ID, inverter.ID)
+						currentCycleKeys[baseKey] = struct{}{}
+						if _, exists := pendingFaults.Load(baseKey); !exists {
+							pendingFaults.Store(baseKey, &pendingFault{
+								firstSeenAt:  now,
+								faultType:    "noI",
+								message:      "Inverter không có dòng",
+								inverterId:   inverter.ID,
+								inverterName: inverter.Name,
+								loggerName:   logger.Name,
+								siteName:     site.Name,
+							})
+						}
+					}
+				}
+				// ── End inverter-level checks ───────────────────────────────
 
 				allStrings := inverter.Strings
 				if len(allStrings) == 0 {
@@ -208,7 +290,7 @@ func generateSmartAlerts(sites []SiteNode, now time.Time) []AlertMessage {
 		key := k.(string)
 		fault := v.(*pendingFault)
 		ageMs := now.Sub(fault.firstSeenAt).Milliseconds()
-		debounceMs := int64(alertDebounceMinutes * 60 * 1000)
+		debounceMs := int64(debounceMin * 60 * 1000)
 
 		if ageMs >= debounceMs {
 			// CONFIRMED – append to alert list

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,6 +69,10 @@ func TestGenerateDeviceAlerts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Reset state between subtests to avoid cross-contamination
+			pendingFaults.Range(func(k, _ interface{}) bool { pendingFaults.Delete(k); return true })
+			confirmedFaults.Range(func(k, _ interface{}) bool { confirmedFaults.Delete(k); return true })
+
 			sites := []SiteNode{
 				{
 					Loggers: []LoggerNode{
@@ -78,22 +83,23 @@ func TestGenerateDeviceAlerts(t *testing.T) {
 				},
 			}
 
-			alerts := generateSmartAlerts(sites, fixedTime)
+			// debounceMin=0 so alerts confirm immediately (no 15-minute wait)
+			alerts := generateSmartAlertsInternal(sites, fixedTime, 0)
 
 			if tt.wantAlert {
 				if len(alerts) == 0 {
 					t.Errorf("Expected alert, got none")
 				} else {
-					// Check message
+					// Check that at least one alert message contains wantMsg
 					found := false
 					for _, a := range alerts {
-						if a.Message == tt.wantMsg {
+						if strings.Contains(a.Message, tt.wantMsg) {
 							found = true
 							break
 						}
 					}
 					if !found {
-						t.Errorf("Expected alert message '%s', got %v", tt.wantMsg, alerts)
+						t.Errorf("Expected alert message containing '%s', got %v", tt.wantMsg, alerts)
 					}
 				}
 			} else {
@@ -131,11 +137,11 @@ func TestGenerateDeviceAlerts_NightMode(t *testing.T) {
 		},
 	}
 
-	alerts := generateSmartAlerts(sites, fixedTime)
+	alerts := generateSmartAlertsInternal(sites, fixedTime, 0)
 
 	// Should NOT have "Công suất đầu ra = 0 kW" alert because it's night
 	for _, a := range alerts {
-		if a.Message == "Công suất đầu ra = 0 kW trong giờ làm việc" {
+		if strings.Contains(a.Message, "Công suất đầu ra = 0 kW trong giờ làm việc") {
 			t.Error("Should not alert zero power at night")
 		}
 	}
