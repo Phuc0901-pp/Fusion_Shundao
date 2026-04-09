@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Nhạc Chuông & Giọng Nói (TTS)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #38bdf8;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 320px;
+        }
+
+        .btn:hover {
+            transform: scale(1.03);
+        }
+
+        .alarm {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .gentle {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .happy {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+
+        .tts {
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+            color: white;
+        }
+
+        .desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: -10px;
+        }
+
+        select {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: white;
+            width: 320px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔊 Test Nhạc Chuông & Giọng Nói</h1>
+
+    <label for="voiceSelect">Chọn giọng đọc (Ưu tiên Google/Microsoft):</label>
+    <select id="voiceSelect" onchange="testTTS('test')">
+        <option value="">-- Tự động (Online TTS nếu thiếu) --</option>
+    </select>
+
+    <button class="btn alarm" onclick="playAlarm()">🔴 Báo Động (Sự cố)</button>
+    <button class="btn gentle" onclick="playGentle()">🔵 Nhạc Nhẹ (Hết giờ)</button>
+    <button class="btn happy" onclick="playHappy()">🟢 Nhạc Vui (Bắt đầu)</button>
+
+    <hr style="width:100%;border-color:#334155;margin:10px 0">
+
+    <button class="btn tts" onclick="testOnlineTTS()">🌐 Test Online TTS (Google)</button>
+    <p class="desc">Dùng khi máy không có giọng Việt (cần Internet)</p>
+
+    <div style="height: 10px"></div>
+
+    <button class="btn tts" onclick="testTTS('alarm')">🗣️ TTS: Báo động sự cố</button>
+    <button class="btn tts" onclick="testTTS('end')">🗣️ TTS: Hết giờ làm việc</button>
+    <button class="btn tts" onclick="testTTS('start')">🗣️ TTS: Chào mừng ngày mới</button>
+
+    <script>
+        let voices = [];
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        function playOnlineAudio(text) {
+            // 1. Try .vn (Low latency for Vietnam)
+            const urlVN = `https://translate.google.com.vn/translate_tts?ie=UTF-8&client=tw-ob&tl=vi&q=${encodeURIComponent(text)}`;
+            const audio = new Audio(urlVN);
+
+            audio.play().catch(e => {
+                console.warn("Failed .vn, trying .com...");
+                // 2. Try .com (Standard)
+                const urlCOM = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=vi&q=${encodeURIComponent(text)}`;
+                new Audio(urlCOM).play().catch(e2 => {
+                    console.warn("Failed .com, trying googleapis...");
+                    // 3. Try googleapis (Alternative ID)
+                    const urlAPI = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=vi&q=${encodeURIComponent(text)}`;
+                    new Audio(urlAPI).play().catch(e3 => {
+                        alert("Không thể tải giọng online. Vui lòng cài gói Tiếng Việt cho Windows.");
+                    });
+                });
+            });
+        }
+
+        function testOnlineTTS() {
+            playOnlineAudio("Xin chào, đây là giọng đọc từ Google Online.");
+        }
+
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+            while (voiceSelect.options.length > 1) {
+                voiceSelect.remove(1);
+            }
+
+            const viVoices = voices.filter(v => v.lang.includes('vi'));
+            const list = viVoices.length ? viVoices : voices;
+
+            list.forEach((voice, i) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = voice.name;
+                if (voice.lang === 'vi-VN' && (voice.name.includes('Google') || voice.name.includes('Microsoft'))) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function playTone(freq, dur, vol = 0.2, type = 'sine') {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = freq; osc.type = type;
+            gain.gain.setValueAtTime(vol, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
+            osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+        }
+
+        function playAlarm() {
+            playTone(880, 0.3, 0.3, 'square');
+            setTimeout(() => playTone(880, 0.3, 0.3, 'square'), 350);
+        }
+
+        function playGentle() {
+            playTone(523, 0.4, 0.15, 'sine');
+            setTimeout(() => playTone(392, 0.5, 0.12, 'sine'), 300);
+        }
+
+        function playHappy() {
+            playTone(523, 0.3, 0.15, 'sine');
+            setTimeout(() => playTone(659, 0.3, 0.15, 'sine'), 250);
+            setTimeout(() => playTone(784, 0.4, 0.18, 'sine'), 500);
+        }
+
+        function testTTS(type) {
+            window.speechSynthesis.cancel();
+            let msg = 'Xin chào, đây là giọng đọc thử nghiệm.';
+            if (type === 'alarm') msg = 'Báo động! Thiết bị Inverter 1 gặp sự cố.';
+            if (type === 'end') msg = 'Cảnh báo: Hệ thống Inverter hết giờ hoạt động.';
+            if (type === 'start') msg = 'Hệ thống bắt đầu hoạt động. Chào mừng ngày mới!';
+
+            const selectedOption = voiceSelect.options[voiceSelect.selectedIndex];
+            if (selectedOption && selectedOption.value !== "") {
+                const voiceName = selectedOption.value;
+                const v = voices.find(voice => voice.name === voiceName);
+                if (v) {
+                    const u = new SpeechSynthesisUtterance(msg);
+                    u.lang = 'vi-VN';
+                    u.voice = v;
+                    u.rate = 1.0;
+                    window.speechSynthesis.speak(u);
+                    return;
+                }
+            }
+
+            console.log("Using Online TTS Fallback");
+            playOnlineAudio(msg);
+        }
+    </script>
+</body>
+
+</html>

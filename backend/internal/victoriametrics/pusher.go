@@ -1,0 +1,356 @@
+package victoriametrics
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"fusion/internal/platform/config"
+	"fusion/internal/platform/utils"
+)
+
+// Config holds VictoriaMetrics configuration
+type Config struct {
+	Endpoint string
+}
+
+// Client is the VictoriaMetrics client
+type Client struct {
+	Config     Config
+	HTTPClient *http.Client
+}
+
+// NewClient creates a new VictoriaMetrics client
+func NewClient(endpoint string) *Client {
+	return &Client{
+		Config: Config{Endpoint: endpoint},
+		HTTPClient: &http.Client{
+			Timeout: 90 * time.Second,
+		},
+	}
+}
+
+// GenericData represents any device data from JSON
+type GenericData struct {
+	Timestamp   int64                  `json:"timestamp"`
+	SiteName    string                 `json:"sitename"`
+	SiteID      string                 `json:"siteid"`
+	Name        string                 `json:"name"`
+	ID          string                 `json:"id"`
+	Model       string                 `json:"model"`
+	SN          string                 `json:"sn"`
+	Measurement string                 `json:"measurement"`
+	Fields      map[string]interface{} `json:"fields"`
+}
+
+// PlantData represents plant overview data
+type PlantData struct {
+	Timestamp   int64                  `json:"timestamp"`
+	SiteName    string                 `json:"sitename"`
+	SiteID      string                 `json:"siteid"`
+	Measurement string                 `json:"measurement"`
+	Fields      map[string]interface{} `json:"fields"`
+}
+
+// PushMetrics pushes Prometheus format data to VictoriaMetrics
+func (c *Client) PushMetrics(data string) error {
+	url := c.Config.Endpoint + "/api/v1/import/prometheus"
+	resp, err := c.HTTPClient.Post(url, "text/plain", strings.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("[ERROR] Failed to push metrics: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("[ERROR] Push failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// DeleteMetrics deletes metrics matching the given pattern from VictoriaMetrics
+func (c *Client) DeleteMetrics(matchPattern string) error {
+	url := fmt.Sprintf("%s/api/v1/admin/tsdb/delete_series?match[]=%s",
+		c.Config.Endpoint, matchPattern)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("[ERROR] Failed to create delete request: %w", err)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("[ERROR] Failed to delete metrics: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("[ERROR] Delete failed with status %d: %s", resp.StatusCode, string(body))
+	}
+	utils.LogInfo("[SUCCESS] Deleted old shundao_* metrics")
+	return nil
+}
+
+// ConvertToPrometheus converts a JSON data file to Prometheus format
+func ConvertToPrometheus(jsonPath string) (string, error) {
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract station from path
+	station := extractStationFromPath(jsonPath)
+
+	// Try to detect type by checking measurement field
+	var generic GenericData
+	if err := json.Unmarshal(data, &generic); err != nil {
+		return "", err
+	}
+
+	var lines []string
+
+	switch generic.Measurement {
+	case "plant":
+		var plant PlantData
+		json.Unmarshal(data, &plant)
+		lines = convertPlantMetrics(plant)
+	case "inverter":
+		lines = convertDeviceMetrics("shundao_inverter", generic, station)
+	case "zonemeter":
+		lines = convertDeviceMetrics("shundao_zonemeter", generic, station)
+	case "sensor":
+		lines = convertDeviceMetrics("shundao_sensor", generic, station)
+	default:
+		lines = convertDeviceMetrics("shundao_"+generic.Measurement, generic, station)
+	}
+
+	return strings.Join(lines, "\n"), nil
+}
+
+// extractStationFromPath extracts station name from file path
+func extractStationFromPath(path string) string {
+	path = filepath.ToSlash(path)
+	parts := strings.Split(path, "/")
+
+	if len(parts) >= 4 {
+		// For data.json: output/SITE/STATION/DEVICE/data.json
+		if parts[len(parts)-1] == "data.json" {
+			stationIdx := len(parts) - 3
+			station := parts[stationIdx]
+			if strings.Contains(station, "Smartlogger") || strings.Contains(station, "Station") {
+				return station
+			}
+			// Try one level up
+			if len(parts) >= 5 {
+				return parts[len(parts)-4]
+			}
+		}
+	}
+	return "unknown"
+}
+
+func convertPlantMetrics(data PlantData) []string {
+	var lines []string
+	siteName := sanitizeLabel(data.SiteName)
+	siteID := data.SiteID
+
+	for fieldName, fieldValue := range data.Fields {
+		val, ok := toFloat64(fieldValue)
+		if !ok {
+			continue
+		}
+		// Format: shundao_plant{...} value [timestamp]
+		// Timestamp in ms from JSON (need to convert to ms string if VM expects it, or s if Prometheus)
+		// VM import/prometheus expects timestamp in milliseconds? No, Prometheus text format usually doesn't have timestamp.
+		// Wait, VM supports timestamp in import/prometheus?
+		// "VictoriaMetrics accepts Prometheus text exposition format... It also accepts lines with timestamp: metric_name{labels} value timestamp"
+		// The timestamp must be in milliseconds.
+		metric := fmt.Sprintf("shundao_plant{site_name=\"%s\",site_id=\"%s\",name=\"%s\"} %v %d",
+			siteName, siteID, sanitizeMetricName(fieldName), val, data.Timestamp)
+		lines = append(lines, metric)
+	}
+	return lines
+}
+
+func convertDeviceMetrics(prefix string, data GenericData, station string) []string {
+	var lines []string
+	siteName := sanitizeLabel(data.SiteName)
+	siteID := data.SiteID
+	device := sanitizeLabel(data.Name)
+	model := sanitizeLabel(data.Model)
+	sn := data.SN
+	deviceID := data.ID // UUID
+
+	for fieldName, fieldValue := range data.Fields {
+		val, ok := toFloat64(fieldValue)
+		if !ok {
+			continue
+		}
+		// Label order: site_name, site_id, station, device, model, sn, id, name
+		metric := fmt.Sprintf("%s{site_name=\"%s\",site_id=\"%s\",station=\"%s\",device=\"%s\",model=\"%s\",sn=\"%s\",id=\"%s\",name=\"%s\"} %v %d",
+			prefix, siteName, siteID, station, device, model, sn, deviceID, sanitizeMetricName(fieldName), val, data.Timestamp)
+		lines = append(lines, metric)
+	}
+	return lines
+}
+
+// PushAllFromDirectory reads all data.json files from output directory and pushes to VM
+func (c *Client) PushAllFromDirectory(outputDir string) error {
+	var allMetrics []string
+	var fileCount int
+	batchSize := 50 // Push every 50 files to avoid timeout
+
+	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.Name() == "overview.json" || info.Name() == "data.json" {
+			metrics, err := ConvertToPrometheus(path)
+			if err != nil {
+				utils.LogWarn("Warning: failed to convert %s: %v", path, err)
+				return nil
+			}
+			if metrics != "" {
+				allMetrics = append(allMetrics, metrics)
+				fileCount++
+
+				// Check if batch is full
+				if len(allMetrics) >= batchSize {
+					payload := strings.Join(allMetrics, "\n")
+					if err := c.PushMetrics(payload); err != nil {
+						utils.LogError("[ERROR] Lỗi push batch (%d files): %v", len(allMetrics), err)
+					} else {
+						utils.LogDebug("[SUCCESS] Pushed batch of %d files to VM", len(allMetrics))
+					}
+					// Reset batch
+					allMetrics = nil
+					// Add small sleep to not overwhelm server
+					time.Sleep(200 * time.Millisecond)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Push remaining metrics
+	if len(allMetrics) > 0 {
+		payload := strings.Join(allMetrics, "\n")
+		if err := c.PushMetrics(payload); err != nil {
+			return err
+		}
+		utils.LogDebug("[SUCCESS] Pushed final batch of metrics")
+	}
+
+	if fileCount == 0 {
+		return fmt.Errorf("[ERROR] No metrics found in %s", outputDir)
+	}
+
+	utils.LogInfo("[SUCCESS] Successfully pushed %d files to VictoriaMetrics", fileCount)
+	return nil
+}
+
+// Helper functions
+
+func sanitizeMetricName(s string) string {
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, " ", "_")
+	s = strings.ReplaceAll(s, "-", "_")
+	s = strings.ReplaceAll(s, "(", "")
+	s = strings.ReplaceAll(s, ")", "")
+	s = strings.ReplaceAll(s, "/", "_")
+	return s
+}
+
+func sanitizeLabel(s string) string {
+	s = strings.ReplaceAll(s, "\"", "")
+	s = strings.ReplaceAll(s, "\\", "")
+	s = strings.ReplaceAll(s, " ", "_")
+	return s
+}
+
+func toFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case float32:
+		return float64(val), true
+	case int:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case string:
+		if val == "-" || val == "" {
+			return 0, false
+		}
+		f, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
+}
+
+// PushMetricsDirect pushes a pre-formatted batch of Prometheus metric lines directly
+// to VictoriaMetrics without writing to disk first (zero Disk I/O path).
+// lines should be a slice of "metric{labels} value timestamp" strings.
+func (c *Client) PushMetricsDirect(lines []string) error {
+	if len(lines) == 0 {
+		return nil
+	}
+	payload := strings.Join(lines, "\n")
+	return c.PushMetrics(payload)
+}
+
+// PushToVictoriaMetrics is a convenience function to push all data from output directory
+// to VictoriaMetrics. Uses config endpoint and output directory.
+// This serves as a fallback / recovery mechanism after a restart.
+func PushToVictoriaMetrics() {
+	endpoint := config.App.System.VMEndpoint
+	outputDir := "output"
+
+	utils.LogInfo(">>> Đẩy dữ liệu lên VictoriaMetrics...")
+	client := NewClient(endpoint)
+
+	if err := client.PushAllFromDirectory(outputDir); err != nil {
+		utils.LogError("[ERROR] Lỗi push VM: %v", err)
+	} else {
+		utils.LogInfo("[SUCCESS] Push VictoriaMetrics thành công!")
+	}
+}
+
+// ConvertDeviceMetricsDirect converts a GenericData struct directly to Prometheus metric lines
+// without involving the filesystem. Returns the station extracted from the device's site + elementDn path or uses a provided stationHint.
+func ConvertDeviceMetricsDirect(data GenericData, stationHint string) []string {
+	switch data.Measurement {
+	case "plant":
+		plant := PlantData{
+			Timestamp:   data.Timestamp,
+			SiteName:    data.SiteName,
+			SiteID:      data.SiteID,
+			Measurement: data.Measurement,
+			Fields:      data.Fields,
+		}
+		return convertPlantMetrics(plant)
+	case "inverter":
+		return convertDeviceMetrics("shundao_inverter", data, stationHint)
+	case "zonemeter":
+		return convertDeviceMetrics("shundao_zonemeter", data, stationHint)
+	case "sensor":
+		return convertDeviceMetrics("shundao_sensor", data, stationHint)
+	default:
+		return convertDeviceMetrics("shundao_"+data.Measurement, data, stationHint)
+	}
+}
